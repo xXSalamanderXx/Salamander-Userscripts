@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Discord-Orbs-Video-Skip
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      1.3.0
+// @version      1.4.0
 // @description  Attempts to speed up the rate of Orbs collection, with automatic fallback handling.
 // @author       xXSalamanderXx
 // @match        https://discord.com/*
@@ -11,15 +11,14 @@
 // ==/UserScript==
 
 /*
-  HOW FALLBACK WORKS
+  HOW TO USE
 
-  Open and start a quest video. The script automatically detects the actively
-  playing video, then press "Start auto fallback".
+  1. Open an Orbs quest video.
+  2. Press the large “I started watching” button in this panel.
+  3. The script selects the quest video in the same Discord quest dialog.
+  4. Press “Start auto fallback”.
 
-  The script tries progressively less aggressive playback methods and
-  automatically moves to the next one if an attempt does not produce a
-  claimable result:
-
+  Automatic fallback tries progressively less aggressive playback methods:
   1. Muted + visually hidden + 16x + small incremental seeks
   2. Muted + visually hidden + 16x
   3. Visible + audible + 16x
@@ -30,14 +29,14 @@
   Manual tools are for testing one specific method only. Use them only if
   automatic fallback does not work.
 
-  "Visually hidden" only makes the selected video transparent. It does not
+  “Visually hidden” only makes the selected video transparent. It does not
   hide the browser tab, spoof focus, or conceal playback state from Discord.
 
   Fast playback may be ignored, clamped, or rejected by Discord. It cannot
   make a real-time watch requirement finish faster in real time.
 
-  CAPTCHAs are not errors. The script pauses, asks you to complete the
-  CAPTCHA, and lets you resume afterward.
+  CAPTCHAs are not errors. Complete them manually, then use
+  “Resume after CAPTCHA”.
 
   The orb counter only increases when you manually confirm the orbs Discord
   actually credited to your account.
@@ -118,24 +117,51 @@ function isVisible(element) {
   );
 }
 
-function getQuestScope(video) {
-  return video.closest('[role="dialog"], dialog') || video.parentElement;
+function getQuestScope(element) {
+  return element.closest('[role="dialog"], dialog') || element.parentElement;
 }
 
-function findActiveVideo() {
-  const videos = [...document.querySelectorAll('video')].filter(video =>
-    isVisible(video) &&
-    !document.getElementById('orbs-skip-panel').contains(video)
+function findStartedWatchingButton() {
+  return [...document.querySelectorAll('button, [role="button"]')].find(button => {
+    if (!isVisible(button)) return false;
+
+    const text = (
+      button.getAttribute('aria-label') ||
+      button.textContent ||
+      ''
+    ).trim().toLowerCase();
+
+    return text.includes('i started watching');
+  });
+}
+
+function selectQuestVideo() {
+  const startedButton = findStartedWatchingButton();
+
+  if (!startedButton) {
+    status('Could not find Discord’s “I started watching…” button. Open the quest video first.', 'error');
+    return false;
+  }
+
+  const scope = getQuestScope(startedButton);
+  const videos = [...scope.querySelectorAll('video')].filter(video =>
+    video.duration > 0 &&
+    video.readyState >= 1
   );
 
-  const playing = videos.find(video =>
-    !video.paused &&
-    !video.ended &&
-    video.currentTime > 0 &&
-    video.readyState >= 2
-  );
+  if (!videos.length) {
+    status('No quest video was found in the selected quest dialog.', 'error');
+    return false;
+  }
 
-  return playing || null;
+  videos.sort((a, b) => (b.clientWidth * b.clientHeight) - (a.clientWidth * a.clientHeight));
+
+  selectedVideo = videos[0];
+  selectedScope = scope;
+
+  status('Quest video selected from the “I started watching…” dialog.', 'success');
+  updateVideoUi();
+  return true;
 }
 
 function findClaimButton() {
@@ -217,6 +243,7 @@ function toast(message, type = 'info', duration = 6000) {
     transform: translateY(-6px);
     transition: opacity .18s ease, transform .18s ease;
     white-space: pre-wrap;
+    overflow-wrap: anywhere;
   `;
 
   toastElement.textContent = message;
@@ -272,12 +299,12 @@ function updateVideoUi() {
       ? Math.round((selectedVideo.currentTime / selectedVideo.duration) * 100)
       : 0;
 
-    selected.textContent = `Quest video detected — playback position ${progress}%`;
+    selected.textContent = `Quest video selected — playback position ${progress}%`;
     startButton.disabled = false;
     manualSection.style.opacity = '1';
     manualSection.style.pointerEvents = 'auto';
   } else {
-    selected.textContent = 'Open and start a quest video. Detection is automatic.';
+    selected.textContent = 'No quest video selected yet.';
     startButton.disabled = true;
     manualSection.style.opacity = '.5';
     manualSection.style.pointerEvents = 'none';
@@ -378,7 +405,7 @@ function interruptRun(run, error) {
   if (error.message === 'VIDEO_REMOVED') {
     selectedVideo = null;
     selectedScope = null;
-    status('The quest video or dialog was removed. Open and start another quest video.', 'error');
+    status('The selected quest video or dialog was removed. Select the quest video again.', 'error');
     updateVideoUi();
     return;
   }
@@ -529,7 +556,7 @@ async function startRun(planIndex, auto = false) {
   }
 
   if (!selectedVideo?.isConnected) {
-    status('No actively playing quest video was detected. Start the video first.', 'error');
+    status('No quest video is selected. Press “I started watching” first.', 'error');
     return;
   }
 
@@ -608,7 +635,7 @@ async function retryClaim() {
   }
 
   if (!selectedVideo?.isConnected) {
-    status('No actively playing quest video was detected.', 'error');
+    status('No quest video is selected.', 'error');
     return;
   }
 
@@ -660,9 +687,9 @@ async function copyLogs() {
 function primaryButtonStyle(colour) {
   return `
     all: unset; display:block; width:100%; box-sizing:border-box;
-    margin-bottom:8px; padding:10px 12px; border-radius:12px;
-    background:${colour}; color:#fff; font-weight:700; text-align:center;
-    cursor:pointer; transition:filter .15s ease;
+    margin-bottom:8px; padding:14px 12px; border-radius:14px;
+    background:${colour}; color:#fff; font-weight:800; font-size:15px;
+    text-align:center; cursor:pointer; transition:filter .15s ease;
   `;
 }
 
@@ -692,11 +719,12 @@ function createPanel() {
     bottom: 20px;
     z-index: 2147483647;
     width: 340px;
-    max-width: calc(100vw - 24px);
-    max-height: min(72vh, 640px);
+    max-width: min(340px, calc(100vw - 24px));
+    max-height: min(72vh, 620px);
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    flex: 0 0 auto;
     background: #1e1f22;
     color: #dbdee1;
     border: 1px solid #2e3035;
@@ -711,13 +739,13 @@ function createPanel() {
   panel.innerHTML = `
     <div id="orbs-skip-header" style="
       display:flex; align-items:center; justify-content:space-between; gap:8px;
-      padding:12px 14px; cursor:move; user-select:none;
+      padding:12px 14px; cursor:move; user-select:none; flex:0 0 auto;
       background:#2b2d31; border-bottom:1px solid #3f4147;
       border-radius:16px 16px 0 0;
     ">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <img src="https://www.google.com/s2/favicons?sz=64&domain=discord.com" alt="" style="width:18px;height:18px;border-radius:4px;">
-        <strong style="color:#fff;">Discord Orbs Video Skip</strong>
+      <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+        <img src="https://www.google.com/s2/favicons?sz=64&domain=discord.com" alt="" style="width:18px;height:18px;border-radius:4px;flex:0 0 auto;">
+        <strong style="color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Discord Orbs Video Skip</strong>
       </div>
       <button data-action="close" style="${smallButtonStyle()}" title="Close panel">×</button>
     </div>
@@ -727,16 +755,26 @@ function createPanel() {
       overflow:auto;
       flex:1;
       min-height:0;
+      min-width:0;
+      overflow-wrap:anywhere;
     ">
       <div style="
-        margin-bottom:10px; padding:11px; border-radius:12px;
+        margin-bottom:10px; padding:12px; border-radius:12px;
         background:#2b2d31; border:1px solid #3f4147;
       ">
         <div style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#949ba4;">
-          Step 1 — Start quest video
+          Step 1 — Select quest video
         </div>
-        <div id="orbs-skip-selected" style="margin-top:6px;color:#fff;font-weight:600;">
-          Open and start a quest video. Detection is automatic.
+        <div id="orbs-skip-selected" style="margin:6px 0 10px;color:#fff;font-weight:600;">
+          No quest video selected yet.
+        </div>
+
+        <button data-action="select" id="orbs-skip-select" style="${primaryButtonStyle('#5865f2')}">
+          ▶ I started watching
+        </button>
+
+        <div style="font-size:11px;color:#949ba4;">
+          Press this after opening the Orbs quest video. It selects the video in the same quest dialog.
         </div>
       </div>
 
@@ -748,8 +786,8 @@ function createPanel() {
       <div id="orbs-skip-status" role="status" style="
         min-height:36px; margin-bottom:10px; padding:10px 12px;
         border-radius:12px; background:#2b2d31; border:1px solid #3f4147;
-        color:#dbdee1;
-      ">Waiting for an actively playing quest video…</div>
+        color:#dbdee1; overflow-wrap:anywhere;
+      ">Select the quest video to begin.</div>
 
       <button data-action="start" id="orbs-skip-start" style="${primaryButtonStyle('#5865f2')}" disabled>
         ▶ Start auto fallback
@@ -797,8 +835,8 @@ function createPanel() {
       <details style="margin-top:10px;">
         <summary style="cursor:pointer;color:#b5bac1;">Activity log</summary>
         <pre id="orbs-skip-log" style="
-          white-space:pre-wrap; max-height:150px; overflow:auto; margin:8px 0 0;
-          padding:8px; border-radius:8px; background:#111214; color:#b5bac1;
+          white-space:pre-wrap; overflow-wrap:anywhere; max-height:150px; overflow:auto;
+          margin:8px 0 0; padding:8px; border-radius:8px; background:#111214; color:#b5bac1;
           font:11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
         "></pre>
       </details>
@@ -825,7 +863,7 @@ function createPanel() {
   toastHost.id = 'orbs-skip-toast-host';
   toastHost.style.cssText = `
     position:fixed; right:20px; top:20px; z-index:2147483647;
-    max-width:360px; pointer-events:none;
+    max-width:min(360px, calc(100vw - 24px)); pointer-events:none;
   `;
   document.body.appendChild(toastHost);
 
@@ -839,6 +877,7 @@ function createPanel() {
       return;
     }
 
+    if (action === 'select') selectQuestVideo();
     if (action === 'start') startRun(null, true);
     if (action === 'normal') startRun(5);
     if (action === 'stop') stopActiveRun();
@@ -976,11 +1015,11 @@ function clampPanel() {
   if (!panel) return;
 
   const rect = panel.getBoundingClientRect();
-  const width = Math.min(panel.offsetWidth, window.innerWidth - 16);
-  const height = Math.min(panel.offsetHeight, window.innerHeight - 16);
+  const width = Math.min(panel.offsetWidth, window.innerWidth - 16, 420);
+  const height = Math.min(panel.offsetHeight, window.innerHeight - 16, 640);
 
   panel.style.width = `${Math.max(300, width)}px`;
-  panel.style.maxHeight = `${Math.min(window.innerHeight - 24, 640)}px`;
+  panel.style.maxHeight = `${height}px`;
 
   const left = Math.min(Math.max(8, rect.left), window.innerWidth - width - 8);
   const top = Math.min(Math.max(8, rect.top), window.innerHeight - height - 8);
@@ -991,27 +1030,21 @@ function clampPanel() {
   panel.style.top = `${top}px`;
 }
 
-function monitorDetection() {
+function monitorSelectedVideo() {
   setInterval(() => {
     resetDailyCounterIfNeeded();
     updateCounter();
 
-    const video = findActiveVideo();
-
-    if (video && video !== selectedVideo) {
-      selectedVideo = video;
-      selectedScope = getQuestScope(video);
-      status('Actively playing quest video detected.', 'success');
-    }
-
-    if (!video && !active) {
+    if (selectedVideo?.isConnected) {
+      updateVideoUi();
+    } else if (!active) {
       selectedVideo = null;
       selectedScope = null;
+      updateVideoUi();
     }
 
-    updateVideoUi();
     clampPanel();
-  }, 750);
+  }, 1000);
 }
 
 function init() {
@@ -1023,12 +1056,12 @@ function init() {
   createPanel();
   updateCounter();
   updateVideoUi();
-  monitorDetection();
+  monitorSelectedVideo();
 
   window.addEventListener('resize', clampPanel);
   window.addEventListener('pagehide', () => stopActiveRun(true));
 
-  status('Ready. Open and start a quest video.', 'info');
+  status('Ready. Open an Orbs quest video, then press “I started watching”.', 'info');
 }
 
 init();
