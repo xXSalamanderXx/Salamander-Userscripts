@@ -71,9 +71,9 @@ async function start(){
  // Silence and hide immediately, before awaiting metadata/playback or checking readiness.
  suppress(r);r.enforce=()=>{if(active===r&&r.mask&&(v.volume!==0||!v.muted))suppress(r);};v.addEventListener('volumechange',r.enforce);
  log('Step 1 complete: selected video muted (volume 0) and visually hidden.');
- check(r);if(claimState(r)==='ready'){log('Claim/Collect is already enabled. Collect your reward manually.');return;}
+ check(r);if(claimState(r)==='ready'){log('Claim button unlocked! Click it to claim Orbs.');return;}
  for(let i=0;i<CONFIG.plans.length;i++){
-  r.index=i;try{await play(r,CONFIG.plans[i]);const result=await verify(r);if(result==='ready'){log('Claim/Collect is enabled. Playback assistance finished; collect the reward yourself.');return;}
+  r.index=i;try{await play(r,CONFIG.plans[i]);const result=await verify(r);if(result==='ready'){log('Claim button unlocked! Click it to claim Orbs.');return;}
   if(result==='locked')log('Claim/Collect is still disabled after playback. Retrying from the start at the next fallback.','warning');
   else{log('No Claim/Collect button was identifiable in this player. Cannot verify completion. Player restored; check Discord manually.','warning');return;}
   }catch(e){if(['CANCELLED','CAPTCHA','PLAYER_CHANGED'].includes(e.message))throw e;if(e.name==='NotAllowedError')throw Error('Browser blocked playback. Press Play in Discord and start again.');log(`Attempt failed: ${e.message}`,'error');}
