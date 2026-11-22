@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Discord-Orbs-Video-Skip
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.1.4
+// @version      2.1.5
 // @description  One-button quest playback with progressively slower retries and claim-readiness checks.
 // @author       xXSalamanderXx
 // @match        https://discord.com/*
@@ -85,7 +85,7 @@ $('watch').onclick=start;
 let copyTimer=null,copyRequest=0;
 $('copy').onclick=async()=>{
  const request=++copyRequest,feedback=$('copy-status');clearTimeout(copyTimer);feedback.textContent='';
- if(!lines.length){feedback.textContent='No logs yet..';return;}
+ if(!lines.length){feedback.textContent='No logs yet..';copyTimer=setTimeout(()=>{if(request===copyRequest)feedback.textContent='';},5000);return;}
  const text=lines.join('\n');let copied=false;
  try{await navigator.clipboard.writeText(text);copied=true;}catch{const t=document.createElement('textarea');t.value=text;t.style.cssText='position:fixed;top:0;left:0;opacity:0';shadow.append(t);t.focus();t.select();try{copied=document.execCommand('copy');}catch{}t.remove();}
  if(request!==copyRequest)return;
