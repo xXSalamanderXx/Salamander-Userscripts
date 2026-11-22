@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YOUTUBE-Modern-Clean-Tabbed-Tube
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.10
+// @version      2.11
 // @description  Rounded YouTube tabs with a configurable default panel.
 // @updateURL    https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
 // @downloadURL  https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
@@ -6193,5 +6193,12 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
 (() => {
  const style = document.createElement("style");
  style.textContent = "\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill], ytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill][aria-expanded=\"true\"] { align-items: center !important; }\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] :is(#view-count, #date-text) {\n align-self: center !important;\n align-items: center !important;\n line-height: 1.4 !important;\n height: auto !important;\n min-height: 0 !important;\n padding-block: 0 !important;\n margin-block: 0 !important;\n top: auto !important;\n bottom: auto !important;\n}\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] :is(#view-count, #date-text) yt-animated-rolling-number {\n align-items: center !important;\n align-self: center !important;\n line-height: inherit !important;\n}\n";
+ (document.head || document.documentElement).appendChild(style);
+})();
+
+// Keep animated time units on the numeric baseline and suppress hidden panel paint.
+(() => {
+ const style = document.createElement("style");
+ style.textContent = "\n/* Centre metadata groups, but share a baseline WITHIN each animated label. */\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] #date-text yt-animated-rolling-number {\n display: inline-flex !important;\n align-items: baseline !important;\n vertical-align: baseline !important;\n font-size: inherit !important;\n line-height: inherit !important;\n}\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] #date-text yt-animated-rolling-number > *,\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] #date-text yt-animated-rolling-number > span > * {\n align-self: baseline !important;\n vertical-align: baseline !important;\n font-size: inherit !important;\n line-height: inherit !important;\n}\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] #date-text yt-animated-rolling-number > span {\n align-items: baseline !important;\n}\n/* A single panel surface; hidden preloading content must never paint. */\nytd-watch-flexy[tyt-tab] #right-tabs .tab-content,\nytd-watch-flexy[tyt-tab] #right-tabs .tab-content-cld {\n transition: none !important;\n animation: none !important;\n}\nytd-watch-flexy[tyt-tab] #right-tabs .tab-content-cld {\n background: transparent !important;\n box-shadow: none !important;\n}\nytd-watch-flexy[tyt-tab] #right-tabs .tab-content-cld:is(.tab-content-hidden, [tyt-hidden]) {\n visibility: hidden !important;\n opacity: 0 !important;\n pointer-events: none !important;\n}\n";
  (document.head || document.documentElement).appendChild(style);
 })();
