@@ -1,10 +1,8 @@
 // ==UserScript==
 // @name         Disable YouTube Miniplayer
 // @namespace    http://tampermonkey.net/
-// @version      1.0.1
+// @version      1.0.0
 // @description  The ultimate nuclear option to disable YouTube's miniplayer. Blocks DOM attributes, intercepts navigation clicks, and forces pauses.
-// @updateURL    https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Disable-Miniplayer.user.js
-// @downloadURL  https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Disable-Miniplayer.user.js
 // @author       xXSalamanderXx
 // @match        *://*.youtube.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=youtube.com
