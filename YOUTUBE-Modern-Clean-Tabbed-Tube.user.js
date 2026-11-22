@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YOUTUBE-Modern-Clean-Tabbed-Tube
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.11
+// @version      2.12
 // @description  Rounded YouTube tabs with a configurable default panel.
 // @updateURL    https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
 // @downloadURL  https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
@@ -5736,17 +5736,26 @@ const styles = {
 
   /* Modern Clean Tabbed Tube */
   ytd-watch-flexy[tyt-tab] {
-    --mctt-bar: rgba(0,0,0,.045);
-    --mctt-panel: rgba(0,0,0,.035);
+    --mctt-text: #0f0f0f;
+    --mctt-muted: #606060;
+    --mctt-selected-text: #fff;
+    --mctt-link: #065fd4;
+    --mctt-bar: #f5f5f5;
+    --mctt-panel: #fff;
     --mctt-pill: #eaeaea;
     --mctt-hover: #dedede;
     --mctt-selected: #222;
     --mctt-pressed: #444;
     --mctt-edge: rgba(0,0,0,.12);
   }
-  html[dark] ytd-watch-flexy[tyt-tab] {
-    --mctt-bar: rgba(0,0,0,.46);
-    --mctt-panel: rgba(20,20,20,.76);
+  html[dark] ytd-watch-flexy[tyt-tab],
+  html:has(ytd-app[dark]) ytd-watch-flexy[tyt-tab] {
+    --mctt-text: #f1f1f1;
+    --mctt-muted: #aaa;
+    --mctt-selected-text: #fff;
+    --mctt-link: #3ea6ff;
+    --mctt-bar: #181818;
+    --mctt-panel: #181818;
     --mctt-pill: #272727;
     --mctt-hover: #383838;
     --mctt-selected: #484848;
@@ -5774,9 +5783,9 @@ const styles = {
   }
   ytd-watch-flexy[tyt-tab] #right-tabs a.tab-btn[tyt-tab-content]:not(.active):hover { background: var(--mctt-hover); }
   ytd-watch-flexy[tyt-tab] #right-tabs a.tab-btn[tyt-tab-content].active {
-    background: var(--mctt-selected); color: white; border-color: var(--mctt-edge);
+    background: var(--mctt-selected); color: var(--mctt-selected-text); border-color: var(--mctt-edge);
   }
-  ytd-watch-flexy[tyt-tab] #right-tabs a.tab-btn[tyt-tab-content]:active { background: var(--mctt-pressed); color: white; }
+  ytd-watch-flexy[tyt-tab] #right-tabs a.tab-btn[tyt-tab-content]:active { background: var(--mctt-pressed); color: var(--mctt-selected-text); }
   ytd-watch-flexy[tyt-tab] #right-tabs a.tab-btn[tyt-tab-content]:focus-visible { outline: 2px solid currentColor; outline-offset: -4px; }
   ytd-watch-flexy[tyt-tab][tyt-comment-disabled] #right-tabs a.tab-btn[tyt-tab-content="#tab-comments"] { opacity: .65; }
   ytd-watch-flexy[tyt-tab] #tab-info #collapse.button.ytd-text-inline-expander { border-radius: 999px; }
@@ -5919,7 +5928,15 @@ let mcttDialog;
 GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
   if (mcttDialog?.open) return;
   const host = document.createElement('div');
-  host.dataset.theme = document.documentElement.hasAttribute('dark') ? 'dark' : 'light';
+  const syncDialogTheme = () => {
+    host.dataset.theme = document.documentElement.hasAttribute('dark') ||
+      document.querySelector('ytd-app[dark]') ? 'dark' : 'light';
+  };
+  syncDialogTheme();
+  const dialogThemeObserver = new MutationObserver(syncDialogTheme);
+  dialogThemeObserver.observe(document.documentElement, {
+    attributes: true, subtree: true, attributeFilter: ['dark']
+  });
   const shadow = host.attachShadow({mode:'closed'});
   shadow.innerHTML = `
     <style>
@@ -5940,7 +5957,7 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
     <dialog aria-labelledby="mctt-title">
       <form>
         <h2 id="mctt-title">Modern Clean Tabbed Tube</h2>
-        <p>By xXSalamanderXx · v2.0</p>
+        <p>By xXSalamanderXx · v2.12</p>
         <label for="mctt-choice">Default tab on new videos</label>
         <select id="mctt-choice" aria-describedby="mctt-help"></select>
         <p id="mctt-help">Choose None to start with all script tabs closed. Changes apply when you open the next video.</p>
@@ -5952,7 +5969,7 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
   const stored = GM_getValue(mcttStorageKey, 'description');
   select.value = mcttChoices.has(stored) ? stored : 'description';
   const dialog = mcttDialog = shadow.querySelector('dialog');
-  dialog.addEventListener('close', () => { host.remove(); mcttDialog = null; }, {once:true});
+  dialog.addEventListener('close', () => { dialogThemeObserver.disconnect(); host.remove(); mcttDialog = null; }, {once:true});
   shadow.querySelector('button[type="button"]').addEventListener('click', () => dialog.close());
   shadow.querySelector('form').addEventListener('submit', event => {
     event.preventDefault();
@@ -6196,9 +6213,16 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
  (document.head || document.documentElement).appendChild(style);
 })();
 
-// Keep animated time units on the numeric baseline and suppress hidden panel paint.
+// Keep animated time units on the numeric baseline.
+(() => {
+ const style = document.createElement('style');
+ style.textContent = "\n/* Centre metadata groups, but share a baseline WITHIN each animated label. */\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] #date-text yt-animated-rolling-number {\n display: inline-flex !important;\n align-items: baseline !important;\n vertical-align: baseline !important;\n font-size: inherit !important;\n line-height: inherit !important;\n}\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] #date-text yt-animated-rolling-number > *,\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] #date-text yt-animated-rolling-number > span > * {\n align-self: baseline !important;\n vertical-align: baseline !important;\n font-size: inherit !important;\n line-height: inherit !important;\n}\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] #date-text yt-animated-rolling-number > span {\n align-items: baseline !important;\n}\n";
+ (document.head || document.documentElement).appendChild(style);
+})();
+
+// Theme coverage and offscreen comments preloading; no panel opacity overrides.
 (() => {
  const style = document.createElement("style");
- style.textContent = "\n/* Centre metadata groups, but share a baseline WITHIN each animated label. */\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] #date-text yt-animated-rolling-number {\n display: inline-flex !important;\n align-items: baseline !important;\n vertical-align: baseline !important;\n font-size: inherit !important;\n line-height: inherit !important;\n}\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] #date-text yt-animated-rolling-number > *,\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] #date-text yt-animated-rolling-number > span > * {\n align-self: baseline !important;\n vertical-align: baseline !important;\n font-size: inherit !important;\n line-height: inherit !important;\n}\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] #date-text yt-animated-rolling-number > span {\n align-items: baseline !important;\n}\n/* A single panel surface; hidden preloading content must never paint. */\nytd-watch-flexy[tyt-tab] #right-tabs .tab-content,\nytd-watch-flexy[tyt-tab] #right-tabs .tab-content-cld {\n transition: none !important;\n animation: none !important;\n}\nytd-watch-flexy[tyt-tab] #right-tabs .tab-content-cld {\n background: transparent !important;\n box-shadow: none !important;\n}\nytd-watch-flexy[tyt-tab] #right-tabs .tab-content-cld:is(.tab-content-hidden, [tyt-hidden]) {\n visibility: hidden !important;\n opacity: 0 !important;\n pointer-events: none !important;\n}\n";
+ style.textContent = "\n/* Theme script-owned surfaces; retain YouTube's native link/button semantics. */\nytd-watch-flexy[tyt-tab] #right-tabs,\nytd-watch-flexy[tyt-tab] #right-tabs .tab-content,\nytd-watch-flexy[tyt-tab] #right-tabs .tab-content-cld {\n color: var(--mctt-text);\n --tyt-tab-text-primary: var(--mctt-text);\n --tyt-tab-text-secondary: var(--mctt-muted);\n}\nytd-watch-flexy[tyt-tab] #right-tabs a.tab-btn[tyt-tab-content]:not(.active):not(:active) {\n color: var(--mctt-text) !important;\n}\nytd-watch-flexy[tyt-tab] #right-tabs a.tab-btn[tyt-tab-content] > svg {\n color: inherit;\n}\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] {\n color: var(--mctt-text) !important;\n background-color: var(--mctt-pill) !important;\n border-color: var(--mctt-edge) !important;\n}\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill]\n :is(#info, #view-count, #date-text, yt-animated-rolling-number) {\n color: inherit;\n}\nytd-watch-flexy[tyt-tab] #tab-info > [data-mctt-description-placeholder] {\n color: var(--mctt-text) !important;\n}\nytd-watch-flexy[tyt-tab] #right-tabs .font-size-btn {\n color: var(--mctt-text);\n background-color: var(--mctt-pill);\n border-color: var(--mctt-edge);\n}\nytd-watch-flexy[tyt-tab] #right-tabs .font-size-btn:hover {\n color: var(--mctt-selected-text);\n background-color: var(--mctt-selected);\n}\n/* Keep preloading comments laid out but physically outside the viewport.\n   Unlike opacity overrides, these rules stop matching as soon as it is shown. */\nytd-watch-flexy[tyt-tab]:not([keep-comments-scroller])\n #right-tabs #tab-comments.tab-content-hidden {\n left: -10000px !important;\n top: 0 !important;\n visibility: hidden !important;\n clip-path: inset(100%) !important;\n pointer-events: none !important;\n}\n";
  (document.head || document.documentElement).appendChild(style);
 })();
