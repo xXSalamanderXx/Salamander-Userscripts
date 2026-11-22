@@ -1,11 +1,14 @@
 // ==UserScript==
-// @name         YouTube More Speeds
-// @namespace    xXSalamanderXx.youtube-more-speeds
-// @version      1.0
+// @name         YOUTUBE-More-Speeds
+// @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
+// @version      1.1
 // @description  Adds a YouTube-style playback speed panel with a 0.25×–16× slider and 24 presets.
+// @updateURL    https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-More-Speeds.user.js
+// @downloadURL  https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-More-Speeds.user.js
 // @author       xXSalamanderXx
 // @match        https://www.youtube.com/*
 // @match        https://www.youtube-nocookie.com/embed/*
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=youtube.com
 // @license      MIT
 // @grant        none
 // @run-at       document-idle

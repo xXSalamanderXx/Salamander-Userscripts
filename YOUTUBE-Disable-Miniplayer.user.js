@@ -1,8 +1,10 @@
 // ==UserScript==
-// @name         Disable YouTube Miniplayer
-// @namespace    http://tampermonkey.net/
-// @version      1.0.0
-// @description  The ultimate nuclear option to disable YouTube's miniplayer. Blocks DOM attributes, intercepts navigation clicks, and forces pauses.
+// @name         YOUTUBE-Disable-Miniplayer
+// @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
+// @version      1.1.0
+// @description  Disables YouTube's miniplayer by blocking DOM attributes, intercepting navigation, and pausing playback.
+// @updateURL    https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Disable-Miniplayer.user.js
+// @downloadURL  https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Disable-Miniplayer.user.js
 // @author       xXSalamanderXx
 // @match        *://*.youtube.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=youtube.com
@@ -10,8 +12,10 @@
 // @run-at       document-start
 // ==/UserScript==
 
+
 (function() {
     'use strict';
+
 
     const css = `
         ytd-miniplayer,
@@ -28,17 +32,20 @@
     style.textContent = css;
     if (document.documentElement) document.documentElement.appendChild(style);
 
+
     const killPlayback = () => {
         const video = document.querySelector('video');
         if (video && !video.paused) {
             video.pause();
         }
 
+
         const closeBtn = document.querySelector('.ytp-miniplayer-close-button');
         if (closeBtn) {
             closeBtn.click();
         }
     };
+
 
     if (window.navigation) {
         window.navigation.addEventListener('navigate', (event) => {
@@ -49,19 +56,23 @@
         });
     }
 
+
     window.addEventListener('yt-navigate-start', (e) => {
         if (e.detail?.url && !e.detail.url.includes('/watch')) {
             killPlayback();
         }
     });
 
+
     const observer = new MutationObserver(() => {
         const app = document.querySelector('ytd-app');
         const isMiniActive = app && (app.hasAttribute('miniplayer-active_') || app.hasAttribute('miniplayer-active')) ||
                              document.querySelector('ytd-miniplayer[active]');
 
+
         if (isMiniActive) {
             killPlayback();
+
 
             if (app) {
                 app.removeAttribute('miniplayer-active_');
@@ -71,6 +82,7 @@
             if (mini) mini.removeAttribute('active');
         }
     });
+
 
     const startObserver = () => {
         if (document.body) {
@@ -85,5 +97,6 @@
         }
     };
     startObserver();
+
 
 })();

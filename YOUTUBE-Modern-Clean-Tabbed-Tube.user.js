@@ -1,62 +1,25 @@
 // ==UserScript==
-// @name                  Modern Clean Tabbed Tube
-// @version               2.0
-// @namespace             https://github.com/xXSalamanderXx/modern-clean-tabbed-tube
-// @author                xXSalamanderXx
-// @license               MIT
-// @match                 https://www.youtube.com/*
-
-// @description           Rounded YouTube tabs with a configurable default panel.
-
-// @description:es        Para crear pestañas para Información, Comentarios y Videos
-// @description:fr        Pour créer des onglets pour Infos, Commentaires et Vidéos
-// @description:de        Um Tabs für Informationen, Kommentare und Videos zu erstellen
-// @description:zh        制作信息、评论和视频的标签
-// @description:zh-CN     制作信息、评论和视频的标签
-// @description:zh-TW     製作資訊、評論和影片的標籤
-// @description:zh-HK     製作資訊、評論和影片的標籤
-// @description:ja        情報、コメントおよび動画のタブを作成するために
-// @description:ko        정보, 댓글 및 동영상에 대한 탭 만들기
-// @description:ru        Чтобы создать вкладки для Информации, Комментариев и Видео
-// @description:pt        Para criar abas para Informações, Comentários e Vídeos
-
-// @run-at                document-start
-// @grant                 GM_addElement
-// @grant                 GM_registerMenuCommand
-// @grant                 GM_getValue
-// @grant                 GM_setValue
+// @name         YOUTUBE-Modern-Clean-Tabbed-Tube
+// @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
+// @version      2.2
+// @description  Rounded YouTube tabs with a configurable default panel.
+// @updateURL    https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
+// @downloadURL  https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
+// @author       xXSalamanderXx
+// @license      MIT
+// @match        https://www.youtube.com/*
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=youtube.com
+// @run-at       document-start
+// @grant        GM_addElement
+// @grant        GM_registerMenuCommand
+// @grant        GM_getValue
+// @grant        GM_setValue
 // @noframes
-// @exclude               /^https?://\w+\.youtube\.com\/live_chat.*$/
-// @exclude               /^https?://\S+\.(txt|png|jpg|jpeg|gif|xml|svg|manifest|log|ini)[^\/]*$/
-// @require               https://cdn.jsdelivr.net/gh/cyfung1031/userscript-supports@c2b707e4977f77792042d4a5015fb188aae4772e/library/nextBrowserTick.min.js
-//
+// @exclude      /^https?:\/\/\w+\.youtube\.com\/live_chat.*$/
+// @exclude      /^https?:\/\/\S+\.(txt|png|jpg|jpeg|gif|xml|svg|manifest|log|ini)[^\/]*$/
+// @require      https://cdn.jsdelivr.net/gh/cyfung1031/userscript-supports@c2b707e4977f77792042d4a5015fb188aae4772e/library/nextBrowserTick.min.js
 // ==/UserScript==
 
-/*
-
-MIT License
-
-Copyright (c) 2024 cyfung1031
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-*/
 
 if (typeof trustedTypes !== 'undefined' && trustedTypes.defaultPolicy === null) {
   let s = s => s;
@@ -526,55 +489,12 @@ const executionScript = (communicationKey) => {
 
     let pageLang = 'en';
     const langWords = {
-      'en': {
-        //'share':'Share',
-        'info': 'Info',
-        'videos': 'Videos',
-        'playlist': 'Playlist'
-      },
-      'jp': {
-        //'share':'共有',
-        'info': '情報',
-        'videos': '動画',
-        'playlist': '再生リスト'
-      },
-      'tw': {
-        //'share':'分享',
-        'info': '資訊',
-        'videos': '影片',
-        'playlist': '播放清單'
-      },
-      'cn': {
-        //'share':'分享',
-        'info': '资讯',
-        'videos': '视频',
-        'playlist': '播放列表'
-      },
-      'du': {
-        //'share':'Teilen',
-        'info': 'Info',
-        'videos': 'Videos',
-        'playlist': 'Playlist'
-      },
-      'fr': {
-        //'share':'Partager',
-        'info': 'Info',
-        'videos': 'Vidéos',
-        'playlist': 'Playlist'
-      },
-      'kr': {
-        //'share':'공유',
-        'info': '정보',
-        'videos': '동영상',
-        'playlist': '재생목록'
-      },
-      'ru': {
-        //'share':'Поделиться',
-        'info': 'Описание',
-        'videos': 'Видео',
-        'playlist': 'Плейлист'
-      }
-    };
+  'en': {
+    'info': 'Info',
+    'videos': 'Videos',
+    'playlist': 'Playlist'
+  }
+};
 
     const svgComments = `<path d="M80 27H12A12 12 90 0 0 0 39v42a12 12 90 0 0 12 12h12v20a2 2 90 0 0 3.4 2L47 93h33a12 
   12 90 0 0 12-12V39a12 12 90 0 0-12-12zM20 47h26a2 2 90 1 1 0 4H20a2 2 90 1 1 0-4zm52 28H20a2 2 90 1 1 0-4h52a2 2 90 
@@ -672,59 +592,12 @@ const executionScript = (communicationKey) => {
 
 
     function getLang() {
+  return 'en';
+}
 
-      let lang = 'en';
-      let htmlLang = ((document || 0).documentElement || 0).lang || '';
-      switch (htmlLang) {
-        case 'en':
-        case 'en-GB':
-          lang = 'en';
-          break;
-        case 'de':
-        case 'de-DE':
-          lang = 'du';
-          break;
-        case 'fr':
-        case 'fr-CA':
-        case 'fr-FR':
-          lang = 'fr';
-          break;
-        case 'zh-Hant':
-        case 'zh-Hant-HK':
-        case 'zh-Hant-TW':
-          lang = 'tw';
-          break;
-        case 'zh-Hans':
-        case 'zh-Hans-CN':
-          lang = 'cn';
-          break;
-        case 'ja':
-        case 'ja-JP':
-          lang = 'jp';
-          break;
-        case 'ko':
-        case 'ko-KR':
-          lang = 'kr';
-          break;
-        case 'ru':
-        case 'ru-RU':
-          lang = 'ru';
-          break;
-        default:
-          lang = 'en';
-      }
-
-      return lang;
-
-    }
-
-    function getLangForPage() {
-
-      let lang = getLang();
-
-      if (langWords[lang]) pageLang = lang; else pageLang = 'en';
-
-    }
+function getLangForPage() {
+  pageLang = 'en';
+}
 
     /** @type {Object.<string, number>} */
     const _locks = {}
