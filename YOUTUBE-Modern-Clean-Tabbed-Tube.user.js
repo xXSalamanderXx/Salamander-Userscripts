@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YOUTUBE-Modern-Clean-Tabbed-Tube
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.6
+// @version      2.7
 // @description  Rounded YouTube tabs with a configurable default panel.
 // @updateURL    https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
 // @downloadURL  https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
@@ -6049,10 +6049,54 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
 })();
 
 
-// Content-sized metadata pill with symmetric padding and automatic item gaps.
+// Content-sized metadata: exclude empty native placeholders from flex spacing.
 (() => {
- const style = document.createElement("style");
- style.id = "mctt-responsive-pill-spacing";
- style.textContent = "/* One content-sized layout, one gap, and equal outer padding. */\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill], ytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill][aria-expanded=\"true\"] {\n display: inline-flex !important;\n flex-direction: row !important;\n flex-wrap: wrap !important;\n align-items: baseline !important;\n justify-content: flex-start !important;\n gap: 8px 20px !important;\n box-sizing: border-box !important;\n width: max-content !important;\n inline-size: max-content !important;\n min-width: 0 !important;\n min-inline-size: 0 !important;\n max-width: 100% !important;\n max-inline-size: 100% !important;\n padding: 12px 24px !important;\n text-align: start !important;\n text-indent: 0 !important;\n}\n/* Flatten only structural wrappers so their padding and widths cannot add\n   an invisible leading column or duplicate the spacing between items. */\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] :is(#info-container, #info):not([hidden]) {\n display: contents !important;\n margin: 0 !important;\n padding: 0 !important;\n text-indent: 0 !important;\n}\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] :is(#info-container, #info) > :not([hidden]):not(style):not(tp-yt-paper-tooltip),\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] :is(#view-count, #date-text) {\n flex: 0 1 auto !important;\n width: auto !important;\n inline-size: auto !important;\n min-width: 0 !important;\n min-inline-size: 0 !important;\n max-inline-size: 100% !important;\n margin: 0 !important;\n padding: 0 !important;\n text-align: start !important;\n text-indent: 0 !important;\n height: auto !important;\n white-space: normal !important;\n overflow-wrap: anywhere !important;\n}\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] [hidden] { display: none !important; }\n@media (max-width: 600px) {\n ytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill], ytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill][aria-expanded=\"true\"] { padding: 10px 18px !important; column-gap: 16px !important; }\n}\n";
- (document.head || document.documentElement).appendChild(style);
+  const selector = '#bottom-row #description ytd-watch-info-text[data-mctt-pill]';
+  const style = document.createElement('style');
+  style.id = 'mctt-responsive-pill-spacing';
+  style.textContent = "/* One content-sized layout, one gap, and equal outer padding. */\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill], ytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill][aria-expanded=\"true\"] {\n display: inline-flex !important;\n flex-direction: row !important;\n flex-wrap: wrap !important;\n align-items: baseline !important;\n justify-content: flex-start !important;\n gap: 8px 20px !important;\n box-sizing: border-box !important;\n width: max-content !important;\n inline-size: max-content !important;\n min-width: 0 !important;\n min-inline-size: 0 !important;\n max-width: 100% !important;\n max-inline-size: 100% !important;\n padding: 12px 24px !important;\n text-align: start !important;\n text-indent: 0 !important;\n}\n/* Flatten only structural wrappers so their padding and widths cannot add\n   an invisible leading column or duplicate the spacing between items. */\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] :is(#info-container, #info):not([hidden]) {\n display: contents !important;\n margin: 0 !important;\n padding: 0 !important;\n text-indent: 0 !important;\n}\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] :is(#info-container, #info) > :not([hidden]):not(style):not(tp-yt-paper-tooltip),\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] :is(#view-count, #date-text) {\n flex: 0 1 auto !important;\n width: auto !important;\n inline-size: auto !important;\n min-width: 0 !important;\n min-inline-size: 0 !important;\n max-inline-size: 100% !important;\n margin: 0 !important;\n padding: 0 !important;\n text-align: start !important;\n text-indent: 0 !important;\n height: auto !important;\n white-space: normal !important;\n overflow-wrap: anywhere !important;\n}\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] [hidden] { display: none !important; }\n@media (max-width: 600px) {\n ytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill], ytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill][aria-expanded=\"true\"] { padding: 10px 18px !important; column-gap: 16px !important; }\n}\n\n/* Empty native placeholders must not become gap-consuming flex items. */\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] [data-mctt-empty-placeholder] { display: none !important; }\n";
+  (document.head || document.documentElement).appendChild(style);
+
+  let frame = 0;
+  const watches = new Map();
+  const update = () => {
+    frame = 0;
+    for (const [pill, observer] of watches) {
+      if (!pill.isConnected) {
+        observer.disconnect();
+        watches.delete(pill);
+      }
+    }
+    for (const pill of document.querySelectorAll(selector)) {
+      if (!watches.has(pill)) {
+        const observer = new MutationObserver(schedule);
+        observer.observe(pill, {
+          subtree: true, childList: true, characterData: true,
+          attributes: true,
+          attributeFilter: ['hidden', 'detailed', 'aria-expanded']
+        });
+        watches.set(pill, observer);
+      }
+      const candidates = pill.querySelectorAll(
+        '#view-count, #date-text, #info > span, #info-container > span'
+      );
+      for (const element of candidates) {
+        if (element.closest('tp-yt-paper-tooltip')) continue;
+        const hasText = Boolean((element.textContent || '').trim());
+        const hasVisual = Boolean(element.querySelector('img, svg, canvas, video'));
+        element.toggleAttribute('data-mctt-empty-placeholder', !hasText && !hasVisual);
+      }
+    }
+  };
+  function schedule() {
+    if (!frame) frame = requestAnimationFrame(update);
+  }
+  const discovery = new MutationObserver(records => {
+    if (records.some(record => [...record.addedNodes].some(node =>
+      node.nodeType === 1 && (node.matches?.(selector) || node.querySelector?.(selector))
+    ))) schedule();
+  });
+  discovery.observe(document.documentElement, { childList: true, subtree: true });
+  document.addEventListener('yt-navigate-finish', schedule);
+  schedule();
 })();
