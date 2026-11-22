@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Discord-Orbs-Video-Skip
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.1.2
+// @version      2.1.3
 // @description  One-button quest playback with progressively slower retries and claim-readiness checks.
 // @author       xXSalamanderXx
 // @match        https://discord.com/*
@@ -16,21 +16,22 @@
 (() => {
 'use strict';
 if(window.top!==window.self||document.getElementById('orbs-simple-host'))return;
-const CONFIG={toastMs:18000,claimWaitMs:30000,stallMs:20000,
+const CONFIG={claimWaitMs:30000,stallMs:20000,
  plans:[{rate:16,seek:true},{rate:16},{rate:8},{rate:4},{rate:2},{rate:1}]};
 const host=document.createElement('div');host.id='orbs-simple-host';document.body.append(host);
 const shadow=host.attachShadow({mode:'open'});
 shadow.innerHTML=`<style>
-:host{all:initial;color:#dbdee1;font:13px/1.5 system-ui}*{box-sizing:border-box}#panel{position:fixed;right:18px;bottom:18px;width:330px;max-width:calc(100vw - 20px);max-height:calc(100dvh - 20px);z-index:2147483646;background:#1e1f22;border:1px solid #41434a;border-radius:16px;box-shadow:0 10px 35px #0008;overflow:auto;padding:14px;contain:inline-size}h2{font-size:14px;margin:0 0 10px;color:white}button{font:700 15px system-ui;border:0;border-radius:12px;width:100%;padding:16px 10px;background:#5865f2;color:white;cursor:pointer}button:hover{filter:brightness(1.12)}button:focus-visible{outline:2px solid #b9c2ff;outline-offset:2px}small{display:block;margin-top:9px;font-size:11px;color:#b5bac1}#status{padding:10px;background:#2b2d31;border-radius:10px;margin:12px 0;overflow-wrap:anywhere}summary{cursor:pointer;color:#b5bac1}pre{font:11px/1.5 monospace;user-select:text;white-space:pre-wrap;overflow-wrap:anywhere;max-height:220px;overflow:auto;background:#111214;border-radius:9px;padding:10px}#toasts{position:fixed;right:18px;top:18px;width:min(360px,calc(100vw - 36px));max-height:45vh;overflow:hidden;z-index:2147483647;pointer-events:none}.toast{background:#343b75;color:white;border-radius:12px;padding:14px;margin-bottom:10px;overflow-wrap:anywhere}
+:host{all:initial;color:#dbdee1;font:13px/1.5 system-ui}*{box-sizing:border-box}#panel{position:fixed;right:18px;bottom:18px;width:330px;max-width:calc(100vw - 20px);max-height:calc(100dvh - 20px);z-index:2147483646;background:#1e1f22;border:1px solid #41434a;border-radius:16px;box-shadow:0 10px 35px #0008;overflow:auto;padding:14px;contain:inline-size}h2{font-size:14px;margin:0 0 10px;color:white}button{font:700 15px system-ui;border:0;border-radius:12px;width:100%;padding:16px 10px;background:#5865f2;color:white;cursor:pointer}button:hover{filter:brightness(1.12)}button:focus-visible{outline:2px solid #b9c2ff;outline-offset:2px}small{display:block;margin-top:9px;font-size:11px;color:#b5bac1}#status{padding:10px;background:#2b2d31;border-radius:10px;margin:12px 0;overflow-wrap:anywhere}summary{cursor:pointer;color:#b5bac1}pre{font:11px/1.5 monospace;user-select:text;white-space:pre-wrap;overflow-wrap:anywhere;max-height:220px;overflow:auto;background:#111214;border-radius:9px;padding:10px}
 
 [hidden]{display:none!important}#panel{padding:0;overflow:hidden;display:flex;flex-direction:column;background:radial-gradient(ellipse at 10% 0%,#6937a52e,transparent 65%),linear-gradient(145deg,#272232,#191a22);border-color:#a978ee55;box-shadow:0 16px 50px #0009,0 0 25px #8b5cf612}
 #header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:13px 14px;cursor:grab;touch-action:none;user-select:none;flex-shrink:0;border-bottom:1px solid #b78af51c}#header h2{margin:0;min-width:0}#minimise{width:30px;height:30px;padding:0;flex-shrink:0;background:#ffffff09;border-radius:9px;font-size:21px;font-weight:400}#content{padding:15px;overflow:auto;min-height:0;min-width:0}
 #watch{border:1px solid transparent;background:linear-gradient(125deg,#6539a8,#4937a0) padding-box,linear-gradient(115deg,#e0aeff,#9564ff,#785cff) border-box;box-shadow:0 0 0 1px #b575ff33,0 0 17px #a058ff60,inset 0 1px 0 #ffffff1f}#watch:hover{box-shadow:0 0 25px #a058ff90}#status{background:linear-gradient(130deg,#ffffff07,#ffffff02);border:1px solid #ffffff0d}
 #orb{position:fixed;right:20px;bottom:20px;width:50px;height:50px;padding:0;border-radius:50%;z-index:2147483646;border:1px solid #ddaaffaa;background:radial-gradient(circle at 33% 25%,#efd2ff 0%,#ba7aff 18%,#7d40cf 48%,#302268 85%);box-shadow:0 0 22px #a459ff70,inset 0 0 10px #ffffff55}
-#copy{display:block;width:auto;background:none;border:0;padding:5px 0;margin:5px 0;color:#c8a5ff;font:12px system-ui;text-decoration:underline;text-underline-offset:3px;border-radius:3px}#copy:disabled{opacity:.6;cursor:default}#log.empty{color:#94909c;font-style:italic}
-</style><section id="panel"><header id="header"><h2>Discord Orbs Video Skip</h2><button id="minimise" title="Minimise to orb" aria-label="Minimise to orb">−</button></header><div id="content"><button id="watch">I started watching</button><small>Script will attempt to speed up or skip the video with fallback options provided automatically</small><div id="status" role="status">Open an Orbs video and click the button above once it starts playing</div><details><summary>Logs</summary><pre id="log" class="empty">No logs yet..</pre></details><button id="copy" type="button">Click here to copy logs</button><span id="copy-status" role="status" style="font-size:11px;color:#b5bac1"></span></div></section><button id="orb" hidden title="Open Discord Orbs Video Skip" aria-label="Open Discord Orbs Video Skip"></button><div id="toasts" aria-live="polite"></div>`;
+#copy{display:block;width:auto;background:none;border:0;padding:5px 0;margin:5px 0;color:#c8a5ff;font:12px system-ui;text-decoration:underline;text-underline-offset:3px;border-radius:3px}#log.empty{color:#94909c;font-style:italic}
+</style><section id="panel"><header id="header"><h2>Discord Orbs Video Skip</h2><button id="minimise" title="Minimise to orb" aria-label="Minimise to orb">−</button></header><div id="content"><button id="watch">I started watching</button><small>Script will attempt to speed up or skip the video with fallback options provided automatically</small><div id="status" role="status">Open an Orbs video and click the button above once it starts playing</div><details><summary>Logs</summary><pre id="log" class="empty">No logs yet..</pre></details><button id="copy" type="button">Click here to copy logs</button><span id="copy-status" role="status" style="font-size:11px;color:#b5bac1"></span></div></section><button id="orb" hidden title="Open Discord Orbs Video Skip" aria-label="Open Discord Orbs Video Skip"></button>`;
 const $=id=>shadow.getElementById(id),lines=[];let active=null,serial=0;
-function log(text,kind='info',notify=true){const line=`[${new Date().toLocaleTimeString()}] [${kind.toUpperCase()}] ${text}`;lines.push(line);if(lines.length>300)lines.shift();$('log').classList.remove('empty');$('log').textContent=lines.join('\n');$('status').textContent=text;console.info('[Orbs]',text);if(notify){const t=document.createElement('div');t.className='toast';t.textContent=text;if(kind==='error')t.style.background='#8d2936';if(kind==='captcha')t.style.background='#765018';$('toasts').append(t);while($('toasts').children.length>3)$('toasts').firstChild.remove();setTimeout(()=>t.remove(),CONFIG.toastMs);}}
+function log(text,kind='info',notify=true){const line=`[${new Date().toLocaleTimeString()}] [${kind.toUpperCase()}] ${text}`;lines.push(line);if(lines.length>300)lines.shift();$('log').classList.remove('empty');$('log').textContent=lines.join('\n');$('status').textContent=text;console.info('[Orbs]',text);}
+
 function shown(e){if(!e?.isConnected||e.closest('[hidden],[aria-hidden="true"]'))return false;for(let n=e;n instanceof Element;n=n.parentElement){const s=getComputedStyle(n);if(s.display==='none'||s.visibility==='hidden'||Number(s.opacity)===0)return false;}const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&r.bottom>0&&r.right>0&&r.top<innerHeight&&r.left<innerWidth;}
 function scopeFor(v){const dialog=v.closest('[role="dialog"],dialog');if(dialog)return dialog;let n=v.closest('[data-testid="discord-web-video-player-container"]');if(!n)return null;const base=n;for(let i=0;i<4&&n.parentElement&&n.parentElement!==document.body;i++){n=n.parentElement;const videos=n.querySelectorAll('video[data-testid="discord-web-video-player-video"]');if(videos.length>1)break;if(/\b(claim|collect|quest|orbs)\b/i.test(n.textContent||''))return n;}return base;}
 function choose(){
@@ -51,12 +52,12 @@ function suppress(r){const v=r.video;v.muted=true;v.volume=0;v.style.setProperty
 function restore(r){r.mask=false;const v=r.video;try{v.pause();v.muted=r.original.muted;v.volume=r.original.volume;v.playbackRate=r.original.rate;if(r.original.opacity)v.style.setProperty('opacity',r.original.opacity,r.original.priority);else v.style.removeProperty('opacity');}catch{}}
 function cancel(){const r=active;if(!r)return;active=null;r.cancelled=true;restore(r);$('watch').textContent='I started watching';log('Stopped. Video paused and original audio, speed and visibility restored.');}
 async function play(r,plan){
- check(r);suppress(r);log(`Attempt ${r.index+1}/${CONFIG.plans.length}: hidden, muted, ${plan.rate}x${plan.seek?', incremental seeks':''}.`);
+ check(r);suppress(r);log(`Attempt ${r.index+1}/${CONFIG.plans.length}: ${plan.rate}x${plan.seek?', incremental seeks':''}.`);
  const v=r.video;v.pause();v.playbackRate=plan.rate;v.currentTime=0;
  await Promise.race([v.play(),wait(15000,r).then(()=>{throw Error('Playback start timed out.');})]);check(r);
  let last=v.currentTime,lastMove=Date.now(),seek=Date.now()+4000,progress=0,pauseAt=0,clampReported=false;
  const end=Date.now()+Math.max(120000,(v.duration+90)*1000);
- while(!v.ended){await wait(300,r);suppress(r);if(v.error)throw Error(`Media error ${v.error.code}.`);if(Date.now()>end)throw Error('Playback watchdog expired.');if(v.currentTime>last+.02){last=v.currentTime;lastMove=Date.now();}if(Date.now()-lastMove>20000)throw Error('Playback stalled for 20 seconds.');if(v.playbackRate!==plan.rate&&!clampReported){clampReported=true;log(`Discord/browser changed requested ${plan.rate}x to ${v.playbackRate}x. Not repeatedly forcing the speed.`,'info',false);}if(v.paused&&!v.ended&&Date.now()-pauseAt>4000){pauseAt=Date.now();await Promise.race([v.play(),wait(10000,r).then(()=>{throw Error('Resume timed out.');})]);}if(plan.seek&&Date.now()>seek&&v.duration-v.currentTime>5){v.currentTime=Math.min(v.duration-3,v.currentTime+Math.min(8,v.duration/10));seek=Date.now()+4000;}if(Date.now()-progress>5000){progress=Date.now();log(`${Math.round(100*v.currentTime/v.duration)}% media position · actual ${v.playbackRate}x · muted and hidden. Quest credit unverified.`,'info',false);}}
+ while(!v.ended){await wait(300,r);suppress(r);if(v.error)throw Error(`Media error ${v.error.code}.`);if(Date.now()>end)throw Error('Playback watchdog expired.');if(v.currentTime>last+.02){last=v.currentTime;lastMove=Date.now();}if(Date.now()-lastMove>20000)throw Error('Playback stalled for 20 seconds.');if(v.playbackRate!==plan.rate&&!clampReported){clampReported=true;log(`Discord/browser changed requested ${plan.rate}x to ${v.playbackRate}x. Not repeatedly forcing the speed.`,'info',false);}if(v.paused&&!v.ended&&Date.now()-pauseAt>4000){pauseAt=Date.now();await Promise.race([v.play(),wait(10000,r).then(()=>{throw Error('Resume timed out.');})]);}if(plan.seek&&Date.now()>seek&&v.duration-v.currentTime>5){v.currentTime=Math.min(v.duration-3,v.currentTime+Math.min(8,v.duration/10));seek=Date.now()+4000;}if(Date.now()-progress>5000){progress=Date.now();log(`${Math.round(100*v.currentTime/v.duration)}% media position · actual ${v.playbackRate}x. Quest credit unverified.`,'info',false);}}
  log('Video ended. Checking whether Claim/Collect unlocks for up to 30 seconds.');
 }
 async function verify(r){const end=Date.now()+CONFIG.claimWaitMs;let state='missing';while(Date.now()<end){check(r);suppress(r);state=claimState(r);if(state==='ready')return 'ready';const e=errorText(r);if(e)throw Error(e.slice(0,250));await wait(500,r);}return state;}
@@ -70,41 +71,30 @@ async function start(){
  active=r;$('watch').textContent='Stop attempt';
  // Silence and hide immediately, before awaiting metadata/playback or checking readiness.
  suppress(r);r.enforce=()=>{if(active===r&&r.mask&&(v.volume!==0||!v.muted))suppress(r);};v.addEventListener('volumechange',r.enforce);
- log('Step 1 complete: selected video muted (volume 0) and visually hidden.');
+ log('Player selected. Preparing playback attempts.');
  check(r);if(claimState(r)==='ready'){log('Claim button unlocked! Click it to claim Orbs.');return;}
  for(let i=0;i<CONFIG.plans.length;i++){
   r.index=i;try{await play(r,CONFIG.plans[i]);const result=await verify(r);if(result==='ready'){log('Claim button unlocked! Click it to claim Orbs.');return;}
   if(result==='locked')log('Claim/Collect is still disabled after playback. Retrying from the start at the next fallback.','warning');
   else{log('No Claim/Collect button was identifiable in this player. Cannot verify completion. Player restored; check Discord manually.','warning');return;}
   }catch(e){if(['CANCELLED','CAPTCHA','PLAYER_CHANGED'].includes(e.message))throw e;if(e.name==='NotAllowedError')throw Error('Browser blocked playback. Press Play in Discord and start again.');log(`Attempt failed: ${e.message}`,'error');}
-  if(i+1<CONFIG.plans.length){log(`Next fallback: ${CONFIG.plans[i+1].rate}x${CONFIG.plans[i+1].seek?' with seeks':' without seeks'}, still muted and hidden.`);await wait(2000,r);}
+  if(i+1<CONFIG.plans.length){log(`Next fallback: ${CONFIG.plans[i+1].rate}x${CONFIG.plans[i+1].seek?' with seeks':' without seeks'}, restarting playback.`);await wait(2000,r);}
  }
- log('All attempts, including muted/hidden 1x, exhausted. Claim readiness was not verified. Player restored; watch normally in Discord.','warning');
+ log('All attempts, including 1x, exhausted. Claim readiness was not verified. Player restored; watch normally in Discord.','warning');
  }catch(e){if(e.message==='CAPTCHA')log('CAPTCHA — not an error. Player restored. Complete it in Discord, then press I started watching to try again.','captcha');else if(e.message==='PLAYER_CHANGED')log('Selected video was removed or changed. Player restored; reopen the quest and start again.','error');else if(e.message!=='CANCELLED')log(e.message,'error');}
  finally{if(r){r.video.removeEventListener('volumechange',r.enforce);if(active===r){restore(r);active=null;$('watch').textContent='I started watching';}}}
 }
 $('watch').onclick=start;
 
-$('copy').onclick=async()=>{
- const feedback=$('copy-status');
- if(!lines.length){feedback.textContent='No logs yet..';return;}
- const text=lines.join('\n');let copied=false;
- try{await navigator.clipboard.writeText(text);copied=true;}catch{
-  const t=document.createElement('textarea');t.value=text;t.style.cssText='position:fixed;top:0;left:0;opacity:0';shadow.append(t);t.focus();t.select();
-  try{copied=document.execCommand('copy');}catch{}t.remove();
- }
- feedback.textContent=copied?'Logs copied.':'Clipboard blocked. Expand Logs and copy the text manually.';
-};
+$('copy').onclick=async()=>{const feedback=$('copy-status');if(!lines.length){feedback.textContent='No logs yet..';return;}const text=lines.join('\n');let copied=false;try{await navigator.clipboard.writeText(text);copied=true;}catch{const t=document.createElement('textarea');t.value=text;t.style.cssText='position:fixed;top:0;left:0;opacity:0';shadow.append(t);t.focus();t.select();try{copied=document.execCommand('copy');}catch{}t.remove();}feedback.textContent=copied?'Logs copied.':'Clipboard blocked. Expand Logs and copy the text manually.';};
 const panel=$('panel'),handle=$('header');let dragging=null,clampQueued=false;
 function clampPanel(){clampQueued=false;if(panel.hidden)return;const vp=window.visualViewport;const left=vp?.offsetLeft||0,top=vp?.offsetTop||0,w=vp?.width||innerWidth,h=vp?.height||innerHeight;panel.style.maxWidth=`${Math.max(1,w-20)}px`;panel.style.maxHeight=`${Math.max(1,h-20)}px`;const rect=panel.getBoundingClientRect();panel.style.left=`${Math.max(left+10,Math.min(rect.left,left+w-rect.width-10))}px`;panel.style.top=`${Math.max(top+10,Math.min(rect.top,top+h-rect.height-10))}px`;panel.style.right='auto';panel.style.bottom='auto';}
 function queueClamp(){if(!clampQueued){clampQueued=true;requestAnimationFrame(clampPanel);}}
-$('minimise').onclick=()=>{panel.hidden=true;$('orb').hidden=false;$('orb').focus();};
-$('orb').onclick=()=>{panel.hidden=false;$('orb').hidden=true;queueClamp();$('watch').focus({preventScroll:true});};
+$('minimise').onclick=()=>{panel.hidden=true;$('orb').hidden=false;$('orb').focus();};$('orb').onclick=()=>{panel.hidden=false;$('orb').hidden=true;queueClamp();$('watch').focus({preventScroll:true});};
 handle.addEventListener('pointerdown',e=>{if(e.button!==0||e.target.closest('button'))return;const rect=panel.getBoundingClientRect();dragging={id:e.pointerId,x:e.clientX,y:e.clientY,left:rect.left,top:rect.top};handle.setPointerCapture(e.pointerId);e.preventDefault();});
 handle.addEventListener('pointermove',e=>{if(!dragging||dragging.id!==e.pointerId)return;panel.style.left=`${dragging.left+e.clientX-dragging.x}px`;panel.style.top=`${dragging.top+e.clientY-dragging.y}px`;panel.style.right='auto';panel.style.bottom='auto';clampPanel();});
 function endDrag(e){if(dragging&&dragging.id===e.pointerId){dragging=null;queueClamp();}}
-handle.addEventListener('pointerup',endDrag);handle.addEventListener('pointercancel',endDrag);handle.addEventListener('lostpointercapture',endDrag);
-addEventListener('resize',queueClamp);window.visualViewport?.addEventListener('resize',queueClamp);window.visualViewport?.addEventListener('scroll',queueClamp);new ResizeObserver(queueClamp).observe(panel);queueClamp();
+handle.addEventListener('pointerup',endDrag);handle.addEventListener('pointercancel',endDrag);handle.addEventListener('lostpointercapture',endDrag);addEventListener('resize',queueClamp);window.visualViewport?.addEventListener('resize',queueClamp);window.visualViewport?.addEventListener('scroll',queueClamp);new ResizeObserver(queueClamp).observe(panel);queueClamp();
 
 addEventListener('pagehide',()=>{if(active){active.cancelled=true;restore(active);active=null;}});
 })();
