@@ -4,18 +4,20 @@ Collection of Various UserScripts for Tampermonkey, Violentmonkey and other user
 
 ## Scripts
 
-| Script | Description |
-|---|---|
-| [Orbs-Video-Skip](https://github.com/xXSalamanderXx/Salamander-Userscripts/blob/main/DISCORD-Orbs-Video-Skip.user.js) | Adds a floating, draggable skip button for Discord Orbs Quests videos. |
-| [Disable-Miniplayer](https://github.com/xXSalamanderXx/Salamander-Userscripts/blob/main/YOUTUBE-Disable-Miniplayer.user.js) | Disables YouTube’s miniplayer by blocking DOM attributes, intercepting navigation, and pausing playback. |
-| [Modern-Clean-Tabbed-Tube](https://github.com/xXSalamanderXx/Salamander-Userscripts/blob/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js) | Adds rounded YouTube tabs with a configurable default panel. |
-| [YouTube-More-Speeds](https://github.com/xXSalamanderXx/Salamander-Userscripts/blob/main/YOUTUBE-More-Speeds.user.js) | Adds a YouTube-style playback speed panel with a 0.25×–16× slider and 24 presets. |
+| Script | Description | Install |
+|---|---|---|
+| [Orbs-Video-Skip](https://github.com/xXSalamanderXx/Salamander-Userscripts/blob/main/DISCORD-Orbs-Video-Skip.user.js) | Adds a floating, draggable skip button for Discord Orbs Quests videos. | [Install](https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/DISCORD-Orbs-Video-Skip.user.js) |
+| [Disable-Miniplayer](https://github.com/xXSalamanderXx/Salamander-Userscripts/blob/main/YOUTUBE-Disable-Miniplayer.user.js) | Disables YouTube’s miniplayer by blocking DOM attributes, intercepting navigation, and pausing playback. | [Install](https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Disable-Miniplayer.user.js) |
+| [Modern-Clean-Tabbed-Tube](https://github.com/xXSalamanderXx/Salamander-Userscripts/blob/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js) | Adds rounded YouTube tabs with a configurable default panel. | [Install](https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js) |
+| [YouTube-More-Speeds](https://github.com/xXSalamanderXx/Salamander-Userscripts/blob/main/YOUTUBE-More-Speeds.user.js) | Adds a YouTube-style playback speed panel with a 0.25×–16× slider and 24 presets. | [Install](https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-More-Speeds.user.js) |
 
 ## Installation
 
-1. Install [Tampermonkey](https://www.tampermonkey.net/), [Violentmonkey](https://violentmonkey.github.io/), or another compatible userscript manager.
-2. Open the `.user.js` file you want to install.
-3. Click **Install** when your userscript manager prompts you.
+1. Install [Tampermonkey](https://www.tampermonkey.net/) or [Violentmonkey](https://violentmonkey.github.io/).
+2. Click an **Install** link in the table above.
+3. Your userscript manager should open an installation page or prompt.
+4. Select **Install** to add the script.
+5. If the installation page does not open, copy the raw script URL and paste it into your userscript manager’s **Create a new script** or **Utilities → Import** option.
 
 Each script includes `@updateURL` and `@downloadURL` metadata, so installed scripts can automatically check for and download updates from this repository.
 
@@ -25,6 +27,7 @@ These userscripts are not included in this repository but I suggest you check th
 
 - [RLSBB-Search-Plus](https://github.com/xXSalamanderXx/RLSBB-Search-Plus)
 - [HDEncode-Search-PlusSee](https://github.com/xXSalamanderXx/HDEncode-Search-PlusSee)
+
 
 ---
 
@@ -68,6 +71,6 @@ The author and contributors are not liable for any claims, damages, or other iss
 
 ## License 📄
 
-Licensed under the **GPL-2.0** license.
+This project is licensed under the **MIT License**.
 
-See the full license here: [GPL-2.0 License](https://github.com/xXSalamanderXx/salamander-trackers/blob/main/LICENSE)
+See the full license here: [MIT License](https://github.com/xXSalamanderXx/Salamander-Userscripts/blob/main/LICENSE)
