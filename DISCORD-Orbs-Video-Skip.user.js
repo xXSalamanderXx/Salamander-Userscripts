@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Discord-Orbs-Video-Skip
+// @name         DISCORD-Orbs-Video-Skip
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.1.5
+// @version      2.1.6
 // @description  One-button quest playback with progressively slower retries and claim-readiness checks.
 // @author       xXSalamanderXx
 // @match        https://discord.com/*
