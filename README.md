@@ -21,10 +21,13 @@ Each script includes `@updateURL` and `@downloadURL` metadata, so installed scri
 
 ## My other userscripts
 
-These userscripts are not included in this repository:
+These userscripts are not included in this repository but I suggest you check them out:
 
 - [RLSBB-Search-Plus](https://github.com/xXSalamanderXx/RLSBB-Search-Plus)
 - [HDEncode-Search-PlusSee](https://github.com/xXSalamanderXx/HDEncode-Search-PlusSee)
+
+---
+
 
 <p align="center">
   <b>⭐ Star the repo • ☕ Support development • 🚀 Explore more projects</b>
@@ -52,15 +55,6 @@ You might also like these projects:
 - [🎬 HDEncode-Search-Plus](https://github.com/xXSalamanderXx/HDEncode-Search-Plus)
 - [🦁 SlimBrave](https://github.com/xXSalamanderXx/SlimBrave)
 - [📷️ Caesium Image Compressor - Linux](https://github.com/xXSalamanderXx/caesium-image-compressor-linux)
-
----
-
-## 🙌 Credit
-
-Full credit goes to the original tracker list maintainers:
-
-- [ngosang/trackerslist](https://github.com/ngosang/trackerslist)
-- [XIU2/TrackersListCollection](https://github.com/XIU2/TrackersListCollection)
 
 ---
 
