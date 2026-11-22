@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Discord-Orbs-Video-Skip
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      1.2.0
+// @version      1.3.0
 // @description  Attempts to speed up the rate of Orbs collection, with automatic fallback handling.
 // @author       xXSalamanderXx
 // @match        https://discord.com/*
@@ -13,10 +13,12 @@
 /*
   HOW FALLBACK WORKS
 
-  Press "Start auto fallback" after Discord detects that you pressed
-  "I started watching...". The script tries progressively less aggressive
-  playback methods and automatically moves to the next one if an attempt
-  does not produce a claimable result:
+  Open and start a quest video. The script automatically detects the actively
+  playing video, then press "Start auto fallback".
+
+  The script tries progressively less aggressive playback methods and
+  automatically moves to the next one if an attempt does not produce a
+  claimable result:
 
   1. Muted + visually hidden + 16x + small incremental seeks
   2. Muted + visually hidden + 16x
@@ -66,7 +68,6 @@ let active = null;
 let pendingCaptcha = null;
 let selectedVideo = null;
 let selectedScope = null;
-let startedWatching = false;
 let logs = [];
 
 function loadState() {
@@ -121,33 +122,20 @@ function getQuestScope(video) {
   return video.closest('[role="dialog"], dialog') || video.parentElement;
 }
 
-function findStartedWatchingButton() {
-  return [...document.querySelectorAll('button, [role="button"]')].find(button => {
-    if (!isVisible(button)) return false;
-
-    const text = (
-      button.getAttribute('aria-label') ||
-      button.textContent ||
-      ''
-    ).trim().toLowerCase();
-
-    return text.includes('i started watching');
-  });
-}
-
 function findActiveVideo() {
-  if (!startedWatching) return null;
-
   const videos = [...document.querySelectorAll('video')].filter(video =>
     isVisible(video) &&
     !document.getElementById('orbs-skip-panel').contains(video)
   );
 
-  return (
-    videos.find(video => !video.paused && !video.ended && video.currentTime > 0) ||
-    videos.find(video => video.readyState >= 2 && video.duration > 0) ||
-    null
+  const playing = videos.find(video =>
+    !video.paused &&
+    !video.ended &&
+    video.currentTime > 0 &&
+    video.readyState >= 2
   );
+
+  return playing || null;
 }
 
 function findClaimButton() {
@@ -279,7 +267,7 @@ function updateVideoUi() {
   const startButton = document.getElementById('orbs-skip-start');
   const manualSection = document.getElementById('orbs-skip-manual');
 
-  if (startedWatching && selectedVideo?.isConnected) {
+  if (selectedVideo?.isConnected) {
     const progress = selectedVideo.duration
       ? Math.round((selectedVideo.currentTime / selectedVideo.duration) * 100)
       : 0;
@@ -289,10 +277,7 @@ function updateVideoUi() {
     manualSection.style.opacity = '1';
     manualSection.style.pointerEvents = 'auto';
   } else {
-    selected.textContent = startedWatching
-      ? 'Waiting for the quest video to start…'
-      : 'Press “I started watching…” in Discord first.';
-
+    selected.textContent = 'Open and start a quest video. Detection is automatic.';
     startButton.disabled = true;
     manualSection.style.opacity = '.5';
     manualSection.style.pointerEvents = 'none';
@@ -393,8 +378,7 @@ function interruptRun(run, error) {
   if (error.message === 'VIDEO_REMOVED') {
     selectedVideo = null;
     selectedScope = null;
-    startedWatching = false;
-    status('The quest video or dialog was removed. Open the quest video again.', 'error');
+    status('The quest video or dialog was removed. Open and start another quest video.', 'error');
     updateVideoUi();
     return;
   }
@@ -545,7 +529,7 @@ async function startRun(planIndex, auto = false) {
   }
 
   if (!selectedVideo?.isConnected) {
-    status('No quest video is active. Press “I started watching…” first.', 'error');
+    status('No actively playing quest video was detected. Start the video first.', 'error');
     return;
   }
 
@@ -624,7 +608,7 @@ async function retryClaim() {
   }
 
   if (!selectedVideo?.isConnected) {
-    status('No quest video is active.', 'error');
+    status('No actively playing quest video was detected.', 'error');
     return;
   }
 
@@ -735,10 +719,7 @@ function createPanel() {
         <img src="https://www.google.com/s2/favicons?sz=64&domain=discord.com" alt="" style="width:18px;height:18px;border-radius:4px;">
         <strong style="color:#fff;">Discord Orbs Video Skip</strong>
       </div>
-      <div style="display:flex;gap:4px;">
-        <button data-action="collapse" style="${smallButtonStyle()}" title="Minimise">−</button>
-        <button data-action="close" style="${smallButtonStyle()}" title="Close to floating button">×</button>
-      </div>
+      <button data-action="close" style="${smallButtonStyle()}" title="Close panel">×</button>
     </div>
 
     <div id="orbs-skip-body" style="
@@ -755,7 +736,7 @@ function createPanel() {
           Step 1 — Start quest video
         </div>
         <div id="orbs-skip-selected" style="margin-top:6px;color:#fff;font-weight:600;">
-          Press “I started watching…” in Discord first.
+          Open and start a quest video. Detection is automatic.
         </div>
       </div>
 
@@ -768,7 +749,7 @@ function createPanel() {
         min-height:36px; margin-bottom:10px; padding:10px 12px;
         border-radius:12px; background:#2b2d31; border:1px solid #3f4147;
         color:#dbdee1;
-      ">Waiting for you to start a quest video…</div>
+      ">Waiting for an actively playing quest video…</div>
 
       <button data-action="start" id="orbs-skip-start" style="${primaryButtonStyle('#5865f2')}" disabled>
         ▶ Start auto fallback
@@ -848,32 +829,13 @@ function createPanel() {
   `;
   document.body.appendChild(toastHost);
 
-  const launcher = document.createElement('button');
-  launcher.id = 'orbs-skip-launcher';
-  launcher.title = 'Open Discord Orbs Video Skip';
-  launcher.style.cssText = `
-    position:fixed; right:20px; bottom:20px; z-index:2147483647;
-    width:48px; height:48px; border:none; border-radius:50%;
-    background:#5865f2; color:#fff; font-size:20px; cursor:pointer;
-    box-shadow:0 8px 24px rgba(0,0,0,.4); display:none;
-  `;
-  launcher.textContent = '🟣';
-  document.body.appendChild(launcher);
-
   panel.addEventListener('click', event => {
     const action = event.target.closest('button')?.dataset.action;
     if (!action) return;
 
-    if (action === 'collapse') {
-      const body = document.getElementById('orbs-skip-body');
-      body.hidden = !body.hidden;
-      event.target.textContent = body.hidden ? '+' : '−';
-      return;
-    }
-
     if (action === 'close') {
-      panel.style.display = 'none';
-      launcher.style.display = 'block';
+      panel.remove();
+      document.getElementById('orbs-skip-toast-host')?.remove();
       return;
     }
 
@@ -951,12 +913,6 @@ function createPanel() {
     }
   });
 
-  launcher.addEventListener('click', () => {
-    panel.style.display = 'flex';
-    launcher.style.display = 'none';
-    clampPanel();
-  });
-
   makeDraggable(panel, document.getElementById('orbs-skip-header'));
   clampPanel();
 }
@@ -1000,7 +956,7 @@ function makeDraggable(panel, handle) {
 
     const top = Math.min(
       Math.max(8, startTop + event.clientY - startY),
-      window.innerHeight - Math.min(height, window.innerHeight - 16) - 8
+      window.innerHeight - height - 8
     );
 
     panel.style.left = `${left}px`;
@@ -1017,7 +973,7 @@ function makeDraggable(panel, handle) {
 
 function clampPanel() {
   const panel = document.getElementById('orbs-skip-panel');
-  if (!panel || panel.style.display === 'none') return;
+  if (!panel) return;
 
   const rect = panel.getBoundingClientRect();
   const width = Math.min(panel.offsetWidth, window.innerWidth - 16);
@@ -1040,26 +996,17 @@ function monitorDetection() {
     resetDailyCounterIfNeeded();
     updateCounter();
 
-    const startedButton = findStartedWatchingButton();
+    const video = findActiveVideo();
 
-    if (startedButton && !startedWatching) {
-      startedWatching = true;
-      status('“I started watching…” detected. Waiting for the quest video…', 'success');
+    if (video && video !== selectedVideo) {
+      selectedVideo = video;
+      selectedScope = getQuestScope(video);
+      status('Actively playing quest video detected.', 'success');
     }
 
-    if (startedWatching) {
-      const video = findActiveVideo();
-
-      if (video && video !== selectedVideo) {
-        selectedVideo = video;
-        selectedScope = getQuestScope(video);
-        status('Quest video detected automatically.', 'success');
-      }
-
-      if (!video && !active) {
-        selectedVideo = null;
-        selectedScope = null;
-      }
+    if (!video && !active) {
+      selectedVideo = null;
+      selectedScope = null;
     }
 
     updateVideoUi();
@@ -1081,7 +1028,7 @@ function init() {
   window.addEventListener('resize', clampPanel);
   window.addEventListener('pagehide', () => stopActiveRun(true));
 
-  status('Ready. Open a quest video and press “I started watching…”.', 'info');
+  status('Ready. Open and start a quest video.', 'info');
 }
 
 init();
