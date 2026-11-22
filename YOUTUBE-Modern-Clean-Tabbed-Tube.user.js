@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YOUTUBE-Modern-Clean-Tabbed-Tube
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.7
+// @version      2.8
 // @description  Rounded YouTube tabs with a configurable default panel.
 // @updateURL    https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
 // @downloadURL  https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
@@ -6097,6 +6097,61 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
     ))) schedule();
   });
   discovery.observe(document.documentElement, { childList: true, subtree: true });
+  document.addEventListener('yt-navigate-finish', schedule);
+  schedule();
+})();
+
+// Display YouTube's empty-description notice in the Info panel only.
+(() => {
+  const style = document.createElement('style');
+  style.textContent = `
+    ytd-watch-flexy[tyt-tab] #bottom-row #description-placeholder[data-mctt-relocated] {
+      display: none !important;
+    }
+    #tab-info > [data-mctt-description-placeholder] {
+      display: block;
+      margin: 12px 0;
+      color: var(--yt-spec-text-secondary);
+      font: inherit;
+      line-height: 1.5;
+      white-space: normal;
+    }
+  `;
+  (document.head || document.documentElement).appendChild(style);
+  let frame = 0;
+  function sync() {
+    frame = 0;
+    const flexy = [...document.querySelectorAll('ytd-watch-flexy[tyt-tab]')]
+      .find(el => !el.closest('[hidden]'));
+    const panel = flexy?.querySelector('#tab-info');
+    const source = flexy?.querySelector('#bottom-row #description-placeholder');
+    const text = source?.textContent.trim() || '';
+    const show = Boolean(panel && source && text && !source.closest('[hidden]'));
+    for (const old of document.querySelectorAll('[data-mctt-description-placeholder]')) {
+      if (!show || old.parentElement !== panel) old.remove();
+    }
+    for (const old of document.querySelectorAll('#description-placeholder[data-mctt-relocated]')) {
+      if (!show || old !== source) old.removeAttribute('data-mctt-relocated');
+    }
+    if (!show) return;
+    let notice = panel.querySelector(':scope > [data-mctt-description-placeholder]');
+    if (!notice) {
+      notice = document.createElement('div');
+      notice.setAttribute('data-mctt-description-placeholder', '');
+      panel.prepend(notice);
+    }
+    if (notice.textContent !== text) notice.textContent = text;
+    if (!source.hasAttribute('data-mctt-relocated')) {
+      source.setAttribute('data-mctt-relocated', '');
+    }
+  }
+  function schedule() {
+    if (!frame) frame = requestAnimationFrame(sync);
+  }
+  new MutationObserver(schedule).observe(document.documentElement, {
+    subtree: true, childList: true, characterData: true,
+    attributes: true, attributeFilter: ['hidden', 'tyt-tab', 'video-id']
+  });
   document.addEventListener('yt-navigate-finish', schedule);
   schedule();
 })();
