@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YOUTUBE-Modern-Clean-Tabbed-Tube
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.9
+// @version      2.10
 // @description  Rounded YouTube tabs with a configurable default panel.
 // @updateURL    https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
 // @downloadURL  https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
@@ -6064,6 +6064,20 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
   function update() {
     frame = 0;
     for (const pill of document.querySelectorAll(selector)) {
+      // Preserve one visible space even where number/label use separate flex children.
+      const walker = document.createTreeWalker(pill, NodeFilter.SHOW_TEXT);
+      let node;
+      let previous = '';
+      while ((node = walker.nextNode())) {
+        if (node.parentElement.closest('tp-yt-paper-tooltip, style, script')) continue;
+        let value = node.nodeValue;
+        value = value.replace(/([0-9kmb])\s*views\b/gi, '$1\u00a0views');
+        if (/^[\s\u00a0]*views\b/i.test(value) && /[0-9kmb]$/i.test(previous.trim())) {
+          value = value.replace(/^[\s\u00a0]*views\b/i, '\u00a0views');
+        }
+        if (value !== node.nodeValue) node.nodeValue = value;
+        if (value.trim()) previous = value;
+      }
       const candidates = new Set(pill.children);
       for (const wrapper of pill.querySelectorAll('#info-container, #info')) {
         for (const child of wrapper.children) candidates.add(child);
@@ -6110,7 +6124,8 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
       margin: 12px 0;
       color: #000 !important;
       font-family: inherit;
-      font-size: 16px !important;
+      font-size: 14px !important;
+      font-style: italic;
       line-height: 1.5;
       white-space: normal;
     }
@@ -6139,6 +6154,11 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
       panel.prepend(notice);
     }
     if (notice.textContent !== text) notice.textContent = text;
+    const description = panel.querySelector(
+      '#description-inline-expander, ytd-text-inline-expander, #attributed-description'
+    );
+    const size = description ? getComputedStyle(description).fontSize : '14px';
+    if (notice.style.fontSize !== size) notice.style.setProperty('font-size', size, 'important');
     if (!source.hasAttribute('data-mctt-relocated')) {
       source.setAttribute('data-mctt-relocated', '');
     }
@@ -6167,4 +6187,11 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
     }
   `;
   (document.head || document.documentElement).appendChild(style);
+})();
+
+// Align native expanded counters and date labels on the same vertical centre.
+(() => {
+ const style = document.createElement("style");
+ style.textContent = "\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill], ytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill][aria-expanded=\"true\"] { align-items: center !important; }\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] :is(#view-count, #date-text) {\n align-self: center !important;\n align-items: center !important;\n line-height: 1.4 !important;\n height: auto !important;\n min-height: 0 !important;\n padding-block: 0 !important;\n margin-block: 0 !important;\n top: auto !important;\n bottom: auto !important;\n}\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] :is(#view-count, #date-text) yt-animated-rolling-number {\n align-items: center !important;\n align-self: center !important;\n line-height: inherit !important;\n}\n";
+ (document.head || document.documentElement).appendChild(style);
 })();
