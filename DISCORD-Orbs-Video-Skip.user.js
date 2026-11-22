@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Discord-Orbs-Video-Skip
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      1.1.0
+// @version      1.2.0
 // @description  Attempts to speed up the rate of Orbs collection, with automatic fallback handling.
 // @author       xXSalamanderXx
 // @match        https://discord.com/*
@@ -13,9 +13,10 @@
 /*
   HOW FALLBACK WORKS
 
-  When you press "Start auto fallback", the script tries progressively less
-  aggressive playback methods. If an attempt does not reach a claimable state,
-  it stops that attempt and automatically tries the next one:
+  Press "Start auto fallback" after Discord detects that you pressed
+  "I started watching...". The script tries progressively less aggressive
+  playback methods and automatically moves to the next one if an attempt
+  does not produce a claimable result:
 
   1. Muted + visually hidden + 16x + small incremental seeks
   2. Muted + visually hidden + 16x
@@ -24,17 +25,17 @@
   5. Visible + audible + 2x
   6. Normal 1x playback
 
-  The individual tools are intended only if automatic fallback does not work.
-  They let you manually test one exact playback mode.
+  Manual tools are for testing one specific method only. Use them only if
+  automatic fallback does not work.
 
-  "Visually hidden" only makes the selected video transparent. It does not hide
-  the browser tab, spoof focus, or conceal playback state from Discord.
+  "Visually hidden" only makes the selected video transparent. It does not
+  hide the browser tab, spoof focus, or conceal playback state from Discord.
 
-  Fast playback may be ignored, clamped, or rejected by Discord. It cannot make
-  a real-time watch requirement finish faster in real time.
+  Fast playback may be ignored, clamped, or rejected by Discord. It cannot
+  make a real-time watch requirement finish faster in real time.
 
-  CAPTCHAs are not errors. The script pauses, asks you to complete the CAPTCHA,
-  and lets you resume afterward.
+  CAPTCHAs are not errors. The script pauses, asks you to complete the
+  CAPTCHA, and lets you resume afterward.
 
   The orb counter only increases when you manually confirm the orbs Discord
   actually credited to your account.
@@ -65,6 +66,7 @@ let active = null;
 let pendingCaptcha = null;
 let selectedVideo = null;
 let selectedScope = null;
+let startedWatching = false;
 let logs = [];
 
 function loadState() {
@@ -107,6 +109,7 @@ function isVisible(element) {
   if (!element?.isConnected) return false;
 
   const style = getComputedStyle(element);
+
   return (
     element.getClientRects().length > 0 &&
     style.visibility !== 'hidden' &&
@@ -118,26 +121,33 @@ function getQuestScope(video) {
   return video.closest('[role="dialog"], dialog') || video.parentElement;
 }
 
-function findActiveVideo() {
-  const videos = [...document.querySelectorAll('video')]
-    .filter(video => isVisible(video) && !document.getElementById('orbs-skip-panel').contains(video));
-
-  const playing = videos.find(video => !video.paused && !video.ended && video.currentTime > 0);
-
-  if (playing) return playing;
-
-  return videos.find(video => video.readyState >= 2 && video.duration > 0) || null;
-}
-
 function findStartedWatchingButton() {
-  const buttons = [...document.querySelectorAll('button, [role="button"]')];
-
-  return buttons.find(button => {
+  return [...document.querySelectorAll('button, [role="button"]')].find(button => {
     if (!isVisible(button)) return false;
 
-    const text = (button.getAttribute('aria-label') || button.textContent || '').trim().toLowerCase();
+    const text = (
+      button.getAttribute('aria-label') ||
+      button.textContent ||
+      ''
+    ).trim().toLowerCase();
+
     return text.includes('i started watching');
   });
+}
+
+function findActiveVideo() {
+  if (!startedWatching) return null;
+
+  const videos = [...document.querySelectorAll('video')].filter(video =>
+    isVisible(video) &&
+    !document.getElementById('orbs-skip-panel').contains(video)
+  );
+
+  return (
+    videos.find(video => !video.paused && !video.ended && video.currentTime > 0) ||
+    videos.find(video => video.readyState >= 2 && video.duration > 0) ||
+    null
+  );
 }
 
 function findClaimButton() {
@@ -153,7 +163,11 @@ function findClaimButton() {
 
     if (disabled) return false;
 
-    const text = (button.getAttribute('aria-label') || button.textContent || '').trim().toLowerCase();
+    const text = (
+      button.getAttribute('aria-label') ||
+      button.textContent ||
+      ''
+    ).trim().toLowerCase();
 
     return (
       text === 'claim' ||
@@ -199,8 +213,9 @@ function toast(message, type = 'info', duration = 6000) {
     captcha: '#f0b232'
   };
 
+  const host = document.getElementById('orbs-skip-toast-host');
   const toastElement = document.createElement('div');
-  toastElement.className = 'orbs-skip-toast';
+
   toastElement.setAttribute('role', 'status');
   toastElement.style.cssText = `
     background: ${colours[type] || colours.info};
@@ -217,7 +232,7 @@ function toast(message, type = 'info', duration = 6000) {
   `;
 
   toastElement.textContent = message;
-  document.getElementById('orbs-skip-toast-host').appendChild(toastElement);
+  host.appendChild(toastElement);
 
   requestAnimationFrame(() => {
     toastElement.style.opacity = '1';
@@ -230,9 +245,7 @@ function toast(message, type = 'info', duration = 6000) {
     setTimeout(() => toastElement.remove(), 220);
   }, duration);
 
-  while (document.getElementById('orbs-skip-toast-host').children.length > 4) {
-    document.getElementById('orbs-skip-toast-host').firstChild.remove();
-  }
+  while (host.children.length > 4) host.firstChild.remove();
 }
 
 function log(message, type = 'info') {
@@ -243,8 +256,9 @@ function log(message, type = 'info') {
 
   if (logs.length > 300) logs.shift();
 
-  document.getElementById('orbs-skip-log').textContent = logs.join('\n');
-  document.getElementById('orbs-skip-log').scrollTop = 999999;
+  const logElement = document.getElementById('orbs-skip-log');
+  logElement.textContent = logs.join('\n');
+  logElement.scrollTop = logElement.scrollHeight;
 }
 
 function status(message, type = 'info', notify = true) {
@@ -256,29 +270,31 @@ function status(message, type = 'info', notify = true) {
 
 function updateCounter() {
   resetDailyCounterIfNeeded();
-
   document.getElementById('orbs-skip-counter').textContent =
     `Orbs collected today = ${state.confirmedOrbs}`;
 }
 
-function updateSelectedVideoUi() {
+function updateVideoUi() {
   const selected = document.getElementById('orbs-skip-selected');
   const startButton = document.getElementById('orbs-skip-start');
   const manualSection = document.getElementById('orbs-skip-manual');
 
-  if (selectedVideo?.isConnected) {
+  if (startedWatching && selectedVideo?.isConnected) {
     const progress = selectedVideo.duration
       ? Math.round((selectedVideo.currentTime / selectedVideo.duration) * 100)
       : 0;
 
-    selected.textContent = `Selected: playing video (${progress}% position)`;
+    selected.textContent = `Quest video detected — playback position ${progress}%`;
     startButton.disabled = false;
     manualSection.style.opacity = '1';
     manualSection.style.pointerEvents = 'auto';
   } else {
-    selected.textContent = 'No quest video detected yet.';
+    selected.textContent = startedWatching
+      ? 'Waiting for the quest video to start…'
+      : 'Press “I started watching…” in Discord first.';
+
     startButton.disabled = true;
-    manualSection.style.opacity = '.55';
+    manualSection.style.opacity = '.5';
     manualSection.style.pointerEvents = 'none';
   }
 }
@@ -292,9 +308,7 @@ function checkRun(run) {
     throw new Error('VIDEO_REMOVED');
   }
 
-  const captcha = detectCaptcha();
-
-  if (captcha) {
+  if (detectCaptcha()) {
     throw new Error('CAPTCHA');
   }
 }
@@ -350,7 +364,7 @@ function stopActiveRun(quiet = false) {
     status('Stopped. Original playback settings restored.', 'info');
   }
 
-  updateSelectedVideoUi();
+  updateVideoUi();
 }
 
 function interruptRun(run, error) {
@@ -367,8 +381,7 @@ function interruptRun(run, error) {
 
     status(
       'CAPTCHA detected — not an error. Complete it in Discord, then press “Resume after CAPTCHA”.',
-      'captcha',
-      true
+      'captcha'
     );
 
     detectCaptcha()?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
@@ -380,8 +393,9 @@ function interruptRun(run, error) {
   if (error.message === 'VIDEO_REMOVED') {
     selectedVideo = null;
     selectedScope = null;
-    status('The selected quest video or dialog was removed. Open the quest video again.', 'error');
-    updateSelectedVideoUi();
+    startedWatching = false;
+    status('The quest video or dialog was removed. Open the quest video again.', 'error');
+    updateVideoUi();
     return;
   }
 
@@ -441,13 +455,8 @@ async function playWithPlan(run, plan) {
   while (!video.ended) {
     await sleep(500, run);
 
-    if (video.error) {
-      throw new Error(`Media error ${video.error.code}.`);
-    }
-
-    if (Date.now() > deadline) {
-      throw new Error('Playback watchdog timed out.');
-    }
+    if (video.error) throw new Error(`Media error ${video.error.code}.`);
+    if (Date.now() > deadline) throw new Error('Playback watchdog timed out.');
 
     if (video.currentTime > lastPosition + 0.02) {
       lastMovement = Date.now();
@@ -464,7 +473,11 @@ async function playWithPlan(run, plan) {
       await video.play();
     }
 
-    if (plan.seek && Date.now() > nextSeek && video.duration - video.currentTime > 5) {
+    if (
+      plan.seek &&
+      Date.now() > nextSeek &&
+      video.duration - video.currentTime > 5
+    ) {
       const jump = Math.min(8, video.duration / 10);
       video.currentTime = Math.min(video.duration - 3, video.currentTime + jump);
       nextSeek = Date.now() + 4000;
@@ -490,9 +503,7 @@ async function attemptCollection(run) {
 
     const error = findError();
 
-    if (error) {
-      throw new Error(`Collection error: ${error}`);
-    }
+    if (error) throw new Error(`Collection error: ${error}`);
 
     const claimButton = findClaimButton();
 
@@ -527,22 +538,23 @@ async function attemptCollection(run) {
   return false;
 }
 
-async function runAutoFallback() {
+async function startRun(planIndex, auto = false) {
   if (active) {
     status('A playback attempt is already running.', 'error');
     return;
   }
 
   if (!selectedVideo?.isConnected) {
-    status('No quest video is selected. Open and start a quest video first.', 'error');
+    status('No quest video is active. Press “I started watching…” first.', 'error');
     return;
   }
 
+  const plan = auto ? null : (planIndex === 5 ? NORMAL_PLAN : PLANS[planIndex]);
   const video = selectedVideo;
 
   const run = {
     video,
-    planIndex: 0,
+    planIndex: planIndex ?? 0,
     phase: 'playback',
     controller: new AbortController(),
     original: {
@@ -556,133 +568,51 @@ async function runAutoFallback() {
   pendingCaptcha = null;
 
   try {
-    for (let index = 0; index < PLANS.length; index++) {
-      run.planIndex = index;
+    if (auto) {
+      for (let index = 0; index < PLANS.length; index++) {
+        run.planIndex = index;
 
-      try {
-        await playWithPlan(run, PLANS[index]);
+        try {
+          await playWithPlan(run, PLANS[index]);
+          const collected = await attemptCollection(run);
 
-        const collected = await attemptCollection(run);
+          if (collected) {
+            status('Automatic fallback finished after a claim action.', 'success');
+            return;
+          }
 
-        if (collected) {
-          status('Automatic fallback finished after a claim action.', 'success');
-          return;
+          status('No enabled claim button appeared. Trying the next fallback method…', 'warning');
+        } catch (error) {
+          if (['CAPTCHA', 'CANCELLED', 'VIDEO_REMOVED'].includes(error.message)) {
+            throw error;
+          }
+
+          status(`Attempt ${index + 1} failed: ${error.message}`, 'error');
         }
 
-        status('No enabled claim button appeared. Trying the next fallback method…', 'warning');
-      } catch (error) {
-        if (['CAPTCHA', 'CANCELLED', 'VIDEO_REMOVED'].includes(error.message)) {
-          throw error;
+        restoreVideo(video);
+
+        if (index < PLANS.length - 1) {
+          status(`Automatically falling back to: ${PLANS[index + 1].label}`, 'info');
+          await sleep(2000, run);
         }
-
-        status(`Attempt ${index + 1} failed: ${error.message}`, 'error');
       }
 
-      restoreVideo(video);
-
-      if (index < PLANS.length - 1) {
-        status(`Automatically falling back to: ${PLANS[index + 1].label}`, 'info');
-        await sleep(2000, run);
-      }
+      status(
+        'Automatic fallback could not establish a claimable result. Try “Normal 1x” and keep Discord visible.',
+        'error'
+      );
+    } else {
+      await playWithPlan(run, plan);
+      await attemptCollection(run);
     }
-
-    status(
-      'Automatic fallback could not establish a claimable result. Try “Normal 1x” and keep Discord visible.',
-      'error',
-      true
-    );
   } catch (error) {
     interruptRun(run, error);
   } finally {
     if (active === run) {
       restoreVideo(run.video);
       active = null;
-      updateSelectedVideoUi();
-    }
-  }
-}
-
-async function runNormal() {
-  if (active) {
-    status('A playback attempt is already running.', 'error');
-    return;
-  }
-
-  if (!selectedVideo?.isConnected) {
-    status('No quest video is selected. Open and start a quest video first.', 'error');
-    return;
-  }
-
-  const video = selectedVideo;
-
-  const run = {
-    video,
-    planIndex: 5,
-    phase: 'playback',
-    controller: new AbortController(),
-    original: {
-      rate: video.playbackRate,
-      muted: video.muted,
-      opacity: video.style.opacity
-    }
-  };
-
-  active = run;
-  pendingCaptcha = null;
-
-  try {
-    await playWithPlan(run, NORMAL_PLAN);
-    await attemptCollection(run);
-  } catch (error) {
-    interruptRun(run, error);
-  } finally {
-    if (active === run) {
-      restoreVideo(run.video);
-      active = null;
-      updateSelectedVideoUi();
-    }
-  }
-}
-
-async function runSinglePlan(planIndex) {
-  if (active) {
-    status('A playback attempt is already running.', 'error');
-    return;
-  }
-
-  if (!selectedVideo?.isConnected) {
-    status('No quest video is selected. Open and start a quest video first.', 'error');
-    return;
-  }
-
-  const plan = PLANS[planIndex];
-  const video = selectedVideo;
-
-  const run = {
-    video,
-    planIndex,
-    phase: 'playback',
-    controller: new AbortController(),
-    original: {
-      rate: video.playbackRate,
-      muted: video.muted,
-      opacity: video.style.opacity
-    }
-  };
-
-  active = run;
-  pendingCaptcha = null;
-
-  try {
-    await playWithPlan(run, plan);
-    await attemptCollection(run);
-  } catch (error) {
-    interruptRun(run, error);
-  } finally {
-    if (active === run) {
-      restoreVideo(run.video);
-      active = null;
-      updateSelectedVideoUi();
+      updateVideoUi();
     }
   }
 }
@@ -694,13 +624,13 @@ async function retryClaim() {
   }
 
   if (!selectedVideo?.isConnected) {
-    status('No quest video is selected.', 'error');
+    status('No quest video is active.', 'error');
     return;
   }
 
   const run = {
     video: selectedVideo,
-    planIndex: lastKnownPlanIndex(),
+    planIndex: pendingCaptcha?.planIndex ?? 0,
     phase: 'collection',
     controller: new AbortController(),
     original: {
@@ -721,14 +651,8 @@ async function retryClaim() {
   } catch (error) {
     interruptRun(run, error);
   } finally {
-    if (active === run) {
-      active = null;
-    }
+    if (active === run) active = null;
   }
-}
-
-function lastKnownPlanIndex() {
-  return pendingCaptcha?.planIndex ?? 0;
 }
 
 async function copyLogs() {
@@ -737,11 +661,10 @@ async function copyLogs() {
   try {
     await navigator.clipboard.writeText(text);
     toast('Activity log copied to clipboard.', 'success');
-  } catch (error) {
+  } catch {
     const textarea = document.createElement('textarea');
     textarea.value = text;
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
+    textarea.style.cssText = 'position:fixed;opacity:0;';
     document.body.appendChild(textarea);
     textarea.select();
     document.execCommand('copy');
@@ -750,89 +673,115 @@ async function copyLogs() {
   }
 }
 
+function primaryButtonStyle(colour) {
+  return `
+    all: unset; display:block; width:100%; box-sizing:border-box;
+    margin-bottom:8px; padding:10px 12px; border-radius:12px;
+    background:${colour}; color:#fff; font-weight:700; text-align:center;
+    cursor:pointer; transition:filter .15s ease;
+  `;
+}
+
+function buttonStyle(colour) {
+  return `
+    all: unset; display:block; width:100%; box-sizing:border-box;
+    margin-bottom:6px; padding:9px 12px; border-radius:12px;
+    background:${colour}; color:#fff; font-weight:600; text-align:center;
+    cursor:pointer; transition:filter .15s ease;
+  `;
+}
+
+function smallButtonStyle() {
+  return `
+    all:unset; cursor:pointer; color:#b5bac1; font-size:16px; line-height:1;
+    padding:4px 8px; border-radius:8px;
+  `;
+}
+
 function createPanel() {
   const panel = document.createElement('section');
   panel.id = 'orbs-skip-panel';
+
   panel.style.cssText = `
     position: fixed;
     right: 20px;
     bottom: 20px;
     z-index: 2147483647;
     width: 340px;
-    max-width: calc(100vw - 32px);
+    max-width: calc(100vw - 24px);
+    max-height: min(72vh, 640px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
     background: #1e1f22;
     color: #dbdee1;
     border: 1px solid #2e3035;
     border-radius: 16px;
-    padding: 14px;
     font: 13px/1.45 "gg sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
     box-shadow: 0 12px 36px rgba(0, 0, 0, .45);
+    resize: both;
+    min-width: 300px;
+    min-height: 220px;
   `;
 
   panel.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+    <div id="orbs-skip-header" style="
+      display:flex; align-items:center; justify-content:space-between; gap:8px;
+      padding:12px 14px; cursor:move; user-select:none;
+      background:#2b2d31; border-bottom:1px solid #3f4147;
+      border-radius:16px 16px 0 0;
+    ">
       <div style="display:flex;align-items:center;gap:8px;">
         <img src="https://www.google.com/s2/favicons?sz=64&domain=discord.com" alt="" style="width:18px;height:18px;border-radius:4px;">
         <strong style="color:#fff;">Discord Orbs Video Skip</strong>
       </div>
-      <button data-action="collapse" style="${smallButtonStyle()}">−</button>
+      <div style="display:flex;gap:4px;">
+        <button data-action="collapse" style="${smallButtonStyle()}" title="Minimise">−</button>
+        <button data-action="close" style="${smallButtonStyle()}" title="Close to floating button">×</button>
+      </div>
     </div>
 
-    <div id="orbs-skip-body">
+    <div id="orbs-skip-body" style="
+      padding:12px 14px;
+      overflow:auto;
+      flex:1;
+      min-height:0;
+    ">
       <div style="
-        margin: 12px 0;
-        padding: 12px;
-        border-radius: 12px;
-        background: #2b2d31;
-        border: 1px solid #3f4147;
+        margin-bottom:10px; padding:11px; border-radius:12px;
+        background:#2b2d31; border:1px solid #3f4147;
       ">
         <div style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#949ba4;">
-          Step 1 — Detect quest video
+          Step 1 — Start quest video
         </div>
         <div id="orbs-skip-selected" style="margin-top:6px;color:#fff;font-weight:600;">
-          No quest video detected yet.
-        </div>
-        <div style="margin-top:6px;color:#b5bac1;">
-          Open a quest video and press its “I started watching…” button. Detection is automatic.
+          Press “I started watching…” in Discord first.
         </div>
       </div>
 
       <div id="orbs-skip-counter" style="
-        margin-bottom: 10px;
-        padding: 10px 12px;
-        border-radius: 12px;
-        background: #2b2d31;
-        border: 1px solid #3f4147;
-        color: #fff;
-        font-weight: 700;
+        margin-bottom:8px; padding:10px 12px; border-radius:12px;
+        background:#2b2d31; border:1px solid #3f4147; color:#fff; font-weight:700;
       "></div>
 
       <div id="orbs-skip-status" role="status" style="
-        min-height: 38px;
-        margin-bottom: 10px;
-        padding: 10px 12px;
-        border-radius: 12px;
-        background: #2b2d31;
-        border: 1px solid #3f4147;
-        color: #dbdee1;
-      ">Waiting for a quest video…</div>
+        min-height:36px; margin-bottom:10px; padding:10px 12px;
+        border-radius:12px; background:#2b2d31; border:1px solid #3f4147;
+        color:#dbdee1;
+      ">Waiting for you to start a quest video…</div>
 
       <button data-action="start" id="orbs-skip-start" style="${primaryButtonStyle('#5865f2')}" disabled>
         ▶ Start auto fallback
       </button>
 
       <div style="
-        margin: 12px 0 8px;
-        font-size: 11px;
-        font-weight: 800;
-        letter-spacing: .06em;
-        text-transform: uppercase;
-        color: #949ba4;
+        margin:12px 0 8px; font-size:11px; font-weight:800;
+        letter-spacing:.06em; text-transform:uppercase; color:#949ba4;
       ">
         Manual tools — use only if auto fallback fails
       </div>
 
-      <div id="orbs-skip-manual" style="opacity:.55;pointer-events:none;">
+      <div id="orbs-skip-manual" style="opacity:.5;pointer-events:none;">
         <button data-action="normal" style="${buttonStyle('#23a55a')}">▶ Normal 1x</button>
         <button data-action="plan-0" style="${buttonStyle('#4e5058')}">1 · Muted + hidden + 16x + seeks</button>
         <button data-action="plan-1" style="${buttonStyle('#4e5058')}">2 · Muted + hidden + 16x</button>
@@ -842,12 +791,8 @@ function createPanel() {
       </div>
 
       <div style="
-        margin: 12px 0 8px;
-        font-size: 11px;
-        font-weight: 800;
-        letter-spacing: .06em;
-        text-transform: uppercase;
-        color: #949ba4;
+        margin:12px 0 8px; font-size:11px; font-weight:800;
+        letter-spacing:.06em; text-transform:uppercase; color:#949ba4;
       ">
         Recovery and collection
       </div>
@@ -856,13 +801,7 @@ function createPanel() {
       <button data-action="claim" style="${buttonStyle('#f0b232')}">Retry claim</button>
       <button data-action="stop" style="${buttonStyle('#da373c')}">■ Stop</button>
 
-      <label style="
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin: 12px 0;
-        color: #b5bac1;
-      ">
+      <label style="display:flex;align-items:center;gap:8px;margin:12px 0;color:#b5bac1;">
         <input id="orbs-skip-auto-claim" type="checkbox">
         Automatically click an enabled claim button
       </label>
@@ -872,18 +811,14 @@ function createPanel() {
         <button data-action="export" style="${buttonStyle('#4e5058')}">⬇ Export log</button>
       </div>
 
+      <button data-action="confirm" style="${buttonStyle('#23a55a')}">✅ Confirm orbs received</button>
+
       <details style="margin-top:10px;">
         <summary style="cursor:pointer;color:#b5bac1;">Activity log</summary>
         <pre id="orbs-skip-log" style="
-          white-space: pre-wrap;
-          max-height: 170px;
-          overflow: auto;
-          margin: 8px 0 0;
-          padding: 8px;
-          border-radius: 8px;
-          background: #111214;
-          color: #b5bac1;
-          font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+          white-space:pre-wrap; max-height:150px; overflow:auto; margin:8px 0 0;
+          padding:8px; border-radius:8px; background:#111214; color:#b5bac1;
+          font:11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
         "></pre>
       </details>
 
@@ -908,14 +843,22 @@ function createPanel() {
   const toastHost = document.createElement('div');
   toastHost.id = 'orbs-skip-toast-host';
   toastHost.style.cssText = `
-    position: fixed;
-    right: 20px;
-    top: 20px;
-    z-index: 2147483647;
-    max-width: 360px;
-    pointer-events: none;
+    position:fixed; right:20px; top:20px; z-index:2147483647;
+    max-width:360px; pointer-events:none;
   `;
   document.body.appendChild(toastHost);
+
+  const launcher = document.createElement('button');
+  launcher.id = 'orbs-skip-launcher';
+  launcher.title = 'Open Discord Orbs Video Skip';
+  launcher.style.cssText = `
+    position:fixed; right:20px; bottom:20px; z-index:2147483647;
+    width:48px; height:48px; border:none; border-radius:50%;
+    background:#5865f2; color:#fff; font-size:20px; cursor:pointer;
+    box-shadow:0 8px 24px rgba(0,0,0,.4); display:none;
+  `;
+  launcher.textContent = '🟣';
+  document.body.appendChild(launcher);
 
   panel.addEventListener('click', event => {
     const action = event.target.closest('button')?.dataset.action;
@@ -928,8 +871,14 @@ function createPanel() {
       return;
     }
 
-    if (action === 'start') runAutoFallback();
-    if (action === 'normal') runNormal();
+    if (action === 'close') {
+      panel.style.display = 'none';
+      launcher.style.display = 'block';
+      return;
+    }
+
+    if (action === 'start') startRun(null, true);
+    if (action === 'normal') startRun(5);
     if (action === 'stop') stopActiveRun();
     if (action === 'claim') retryClaim();
     if (action === 'copy') copyLogs();
@@ -947,7 +896,7 @@ function createPanel() {
         if (pending.phase === 'collection') {
           retryClaim();
         } else {
-          runSinglePlan(pending.planIndex);
+          startRun(pending.planIndex);
         }
       } else {
         status('There is no CAPTCHA-paused attempt to resume.', 'info');
@@ -961,7 +910,6 @@ function createPanel() {
       }
 
       const questId = prompt('Enter a unique quest name or identifier. Only record rewards actually received:');
-
       if (!questId?.trim()) return;
 
       const normalisedId = questId.trim().toLowerCase();
@@ -972,7 +920,6 @@ function createPanel() {
       }
 
       const amount = prompt('Exact number of orbs Discord confirmed you received:');
-
       if (amount === null) return;
 
       const orbs = Number(amount);
@@ -1000,84 +947,123 @@ function createPanel() {
     }
 
     if (action.startsWith('plan-')) {
-      runSinglePlan(Number(action.replace('plan-', '')));
+      startRun(Number(action.replace('plan-', '')));
     }
+  });
+
+  launcher.addEventListener('click', () => {
+    panel.style.display = 'flex';
+    launcher.style.display = 'none';
+    clampPanel();
+  });
+
+  makeDraggable(panel, document.getElementById('orbs-skip-header'));
+  clampPanel();
+}
+
+function makeDraggable(panel, handle) {
+  let dragging = false;
+  let startX = 0;
+  let startY = 0;
+  let startLeft = 0;
+  let startTop = 0;
+
+  handle.addEventListener('mousedown', event => {
+    if (event.target.closest('button')) return;
+
+    dragging = true;
+    const rect = panel.getBoundingClientRect();
+    startX = event.clientX;
+    startY = event.clientY;
+    startLeft = rect.left;
+    startTop = rect.top;
+
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
+    panel.style.left = `${startLeft}px`;
+    panel.style.top = `${startTop}px`;
+    handle.style.cursor = 'grabbing';
+
+    event.preventDefault();
+  });
+
+  document.addEventListener('mousemove', event => {
+    if (!dragging) return;
+
+    const width = panel.offsetWidth;
+    const height = panel.offsetHeight;
+
+    const left = Math.min(
+      Math.max(8, startLeft + event.clientX - startX),
+      window.innerWidth - width - 8
+    );
+
+    const top = Math.min(
+      Math.max(8, startTop + event.clientY - startY),
+      window.innerHeight - Math.min(height, window.innerHeight - 16) - 8
+    );
+
+    panel.style.left = `${left}px`;
+    panel.style.top = `${top}px`;
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    handle.style.cursor = 'move';
+    clampPanel();
   });
 }
 
-function smallButtonStyle() {
-  return `
-    all: unset;
-    cursor: pointer;
-    color: #b5bac1;
-    font-size: 16px;
-    line-height: 1;
-    padding: 4px 8px;
-    border-radius: 8px;
-  `;
+function clampPanel() {
+  const panel = document.getElementById('orbs-skip-panel');
+  if (!panel || panel.style.display === 'none') return;
+
+  const rect = panel.getBoundingClientRect();
+  const width = Math.min(panel.offsetWidth, window.innerWidth - 16);
+  const height = Math.min(panel.offsetHeight, window.innerHeight - 16);
+
+  panel.style.width = `${Math.max(300, width)}px`;
+  panel.style.maxHeight = `${Math.min(window.innerHeight - 24, 640)}px`;
+
+  const left = Math.min(Math.max(8, rect.left), window.innerWidth - width - 8);
+  const top = Math.min(Math.max(8, rect.top), window.innerHeight - height - 8);
+
+  panel.style.right = 'auto';
+  panel.style.bottom = 'auto';
+  panel.style.left = `${left}px`;
+  panel.style.top = `${top}px`;
 }
 
-function primaryButtonStyle(colour) {
-  return `
-    all: unset;
-    display: block;
-    width: 100%;
-    box-sizing: border-box;
-    margin-bottom: 8px;
-    padding: 10px 12px;
-    border-radius: 12px;
-    background: ${colour};
-    color: #fff;
-    font-weight: 700;
-    text-align: center;
-    cursor: pointer;
-    transition: filter .15s ease;
-  `;
-}
-
-function buttonStyle(colour) {
-  return `
-    all: unset;
-    display: block;
-    width: 100%;
-    box-sizing: border-box;
-    margin-bottom: 6px;
-    padding: 9px 12px;
-    border-radius: 12px;
-    background: ${colour};
-    color: #fff;
-    font-weight: 600;
-    text-align: center;
-    cursor: pointer;
-    transition: filter .15s ease;
-  `;
-}
-
-function monitorVideoDetection() {
+function monitorDetection() {
   setInterval(() => {
     resetDailyCounterIfNeeded();
     updateCounter();
 
-    const video = findActiveVideo();
-
-    if (video && video !== selectedVideo) {
-      selectedVideo = video;
-      selectedScope = getQuestScope(video);
-      status('Quest video detected automatically.', 'success');
-    }
-
-    if (!video && !active) {
-      selectedVideo = null;
-      selectedScope = null;
-    }
-
-    updateSelectedVideoUi();
-
     const startedButton = findStartedWatchingButton();
 
-    if (startedButton && !active) {
-      log('“I started watching…” button detected.', 'info', false);
+    if (startedButton && !startedWatching) {
+      startedWatching = true;
+      status('“I started watching…” detected. Waiting for the quest video…', 'success');
     }
+
+    if (startedWatching) {
+      const video = findActiveVideo();
+
+      if (video && video !== selectedVideo) {
+        selectedVideo = video;
+        selectedScope = getQuestScope(video);
+        status('Quest video detected automatically.', 'success');
+      }
+
+      if (!video && !active) {
+        selectedVideo = null;
+        selectedScope = null;
+      }
+    }
+
+    updateVideoUi();
+    clampPanel();
   }, 750);
 }
 
@@ -1089,9 +1075,10 @@ function init() {
 
   createPanel();
   updateCounter();
-  updateSelectedVideoUi();
-  monitorVideoDetection();
+  updateVideoUi();
+  monitorDetection();
 
+  window.addEventListener('resize', clampPanel);
   window.addEventListener('pagehide', () => stopActiveRun(true));
 
   status('Ready. Open a quest video and press “I started watching…”.', 'info');
