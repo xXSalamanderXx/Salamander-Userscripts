@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YOUTUBE-Modern-Clean-Tabbed-Tube
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.12
+// @version      2.13
 // @description  Rounded YouTube tabs with a configurable default panel.
 // @updateURL    https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
 // @downloadURL  https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
@@ -5957,7 +5957,7 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
     <dialog aria-labelledby="mctt-title">
       <form>
         <h2 id="mctt-title">Modern Clean Tabbed Tube</h2>
-        <p>By xXSalamanderXx · v2.12</p>
+        <p>By xXSalamanderXx · v2.13</p>
         <label for="mctt-choice">Default tab on new videos</label>
         <select id="mctt-choice" aria-describedby="mctt-help"></select>
         <p id="mctt-help">Choose None to start with all script tabs closed. Changes apply when you open the next video.</p>
@@ -6224,5 +6224,13 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
 (() => {
  const style = document.createElement("style");
  style.textContent = "\n/* Theme script-owned surfaces; retain YouTube's native link/button semantics. */\nytd-watch-flexy[tyt-tab] #right-tabs,\nytd-watch-flexy[tyt-tab] #right-tabs .tab-content,\nytd-watch-flexy[tyt-tab] #right-tabs .tab-content-cld {\n color: var(--mctt-text);\n --tyt-tab-text-primary: var(--mctt-text);\n --tyt-tab-text-secondary: var(--mctt-muted);\n}\nytd-watch-flexy[tyt-tab] #right-tabs a.tab-btn[tyt-tab-content]:not(.active):not(:active) {\n color: var(--mctt-text) !important;\n}\nytd-watch-flexy[tyt-tab] #right-tabs a.tab-btn[tyt-tab-content] > svg {\n color: inherit;\n}\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] {\n color: var(--mctt-text) !important;\n background-color: var(--mctt-pill) !important;\n border-color: var(--mctt-edge) !important;\n}\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill]\n :is(#info, #view-count, #date-text, yt-animated-rolling-number) {\n color: inherit;\n}\nytd-watch-flexy[tyt-tab] #tab-info > [data-mctt-description-placeholder] {\n color: var(--mctt-text) !important;\n}\nytd-watch-flexy[tyt-tab] #right-tabs .font-size-btn {\n color: var(--mctt-text);\n background-color: var(--mctt-pill);\n border-color: var(--mctt-edge);\n}\nytd-watch-flexy[tyt-tab] #right-tabs .font-size-btn:hover {\n color: var(--mctt-selected-text);\n background-color: var(--mctt-selected);\n}\n/* Keep preloading comments laid out but physically outside the viewport.\n   Unlike opacity overrides, these rules stop matching as soon as it is shown. */\nytd-watch-flexy[tyt-tab]:not([keep-comments-scroller])\n #right-tabs #tab-comments.tab-content-hidden {\n left: -10000px !important;\n top: 0 !important;\n visibility: hidden !important;\n clip-path: inset(100%) !important;\n pointer-events: none !important;\n}\n";
+ (document.head || document.documentElement).appendChild(style);
+})();
+
+// Keep the normal-layout video backdrop below the sibling sidebar.
+(() => {
+ const style = document.createElement("style");
+ style.id = "mctt-watch-column-stacking";
+ style.textContent = "\n/* Separate sibling paint layers in the normal two-column watch layout.\n   Player descendants (including the ambient backdrop) stay below the sidebar.\n   Do not clip #primary: its player controls and menus must remain functional. */\nytd-watch-flexy[tyt-tab][is-two-columns_]:not([theater]):not([fullscreen])\n #columns > #primary {\n position: relative;\n isolation: isolate;\n z-index: 0;\n}\nytd-watch-flexy[tyt-tab][is-two-columns_]:not([theater]):not([fullscreen])\n #columns > #secondary {\n position: relative;\n isolation: isolate;\n z-index: 1;\n}\n";
  (document.head || document.documentElement).appendChild(style);
 })();
