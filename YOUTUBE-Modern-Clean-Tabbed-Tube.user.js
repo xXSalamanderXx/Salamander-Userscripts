@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YOUTUBE-Modern-Clean-Tabbed-Tube
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.8
+// @version      2.9
 // @description  Rounded YouTube tabs with a configurable default panel.
 // @updateURL    https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
 // @downloadURL  https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
@@ -6058,46 +6058,39 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
   (document.head || document.documentElement).appendChild(style);
 
   let frame = 0;
-  const watches = new Map();
-  const update = () => {
-    frame = 0;
-    for (const [pill, observer] of watches) {
-      if (!pill.isConnected) {
-        observer.disconnect();
-        watches.delete(pill);
-      }
-    }
-    for (const pill of document.querySelectorAll(selector)) {
-      if (!watches.has(pill)) {
-        const observer = new MutationObserver(schedule);
-        observer.observe(pill, {
-          subtree: true, childList: true, characterData: true,
-          attributes: true,
-          attributeFilter: ['hidden', 'detailed', 'aria-expanded']
-        });
-        watches.set(pill, observer);
-      }
-      const candidates = pill.querySelectorAll(
-        '#view-count, #date-text, #info > span, #info-container > span'
-      );
-      for (const element of candidates) {
-        if (element.closest('tp-yt-paper-tooltip')) continue;
-        const hasText = Boolean((element.textContent || '').trim());
-        const hasVisual = Boolean(element.querySelector('img, svg, canvas, video'));
-        element.toggleAttribute('data-mctt-empty-placeholder', !hasText && !hasVisual);
-      }
-    }
-  };
   function schedule() {
     if (!frame) frame = requestAnimationFrame(update);
   }
-  const discovery = new MutationObserver(records => {
-    if (records.some(record => [...record.addedNodes].some(node =>
-      node.nodeType === 1 && (node.matches?.(selector) || node.querySelector?.(selector))
-    ))) schedule();
+  function update() {
+    frame = 0;
+    for (const pill of document.querySelectorAll(selector)) {
+      const candidates = new Set(pill.children);
+      for (const wrapper of pill.querySelectorAll('#info-container, #info')) {
+        for (const child of wrapper.children) candidates.add(child);
+      }
+      for (const element of candidates) {
+        if (element.matches('#info-container, #info, style, script, tp-yt-paper-tooltip') ||
+            element.closest('tp-yt-paper-tooltip')) continue;
+        const text = (element.textContent || '').replace(/[\s\u200B-\u200D\uFEFF]/g, '');
+        const visual = element.matches('img, svg, canvas, video') ||
+          element.querySelector('img, svg, canvas, video');
+        const empty = !text && !visual;
+        if (element.hasAttribute('data-mctt-empty-placeholder') !== empty) {
+          element.toggleAttribute('data-mctt-empty-placeholder', empty);
+        }
+      }
+    }
+  }
+  // Includes late pill initialization, replacement children and removed markers.
+  new MutationObserver(schedule).observe(document.documentElement, {
+    subtree: true, childList: true, characterData: true,
+    attributes: true,
+    attributeFilter: ['data-mctt-pill', 'data-mctt-empty-placeholder',
+      'hidden', 'detailed', 'aria-expanded']
   });
-  discovery.observe(document.documentElement, { childList: true, subtree: true });
   document.addEventListener('yt-navigate-finish', schedule);
+  document.addEventListener('yt-page-data-updated', schedule);
+  window.addEventListener('pageshow', schedule);
   schedule();
 })();
 
@@ -6108,11 +6101,16 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
     ytd-watch-flexy[tyt-tab] #bottom-row #description-placeholder[data-mctt-relocated] {
       display: none !important;
     }
+    html[dark][dark] #tab-info > [data-mctt-description-placeholder],
+    html:has(ytd-app[dark]) #tab-info > [data-mctt-description-placeholder] {
+      color: #fff !important;
+    }
     #tab-info > [data-mctt-description-placeholder] {
       display: block;
       margin: 12px 0;
-      color: var(--yt-spec-text-secondary);
-      font: inherit;
+      color: #000 !important;
+      font-family: inherit;
+      font-size: 16px !important;
       line-height: 1.5;
       white-space: normal;
     }
@@ -6154,4 +6152,19 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
   });
   document.addEventListener('yt-navigate-finish', schedule);
   schedule();
+})();
+
+// Stronger than native ID-based display rules: no empty flex slots.
+(() => {
+  const style = document.createElement('style');
+  style.textContent = `
+    ytd-watch-flexy[tyt-tab] #bottom-row #description
+    ytd-watch-info-text[data-mctt-pill]
+    :is(#view-count, #date-text, [data-mctt-empty-placeholder])[data-mctt-empty-placeholder] {
+      display: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+  `;
+  (document.head || document.documentElement).appendChild(style);
 })();
