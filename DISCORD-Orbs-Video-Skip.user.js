@@ -1,16 +1,10 @@
 // ==UserScript==
 // @name        【Sorry,Discord!】 DC Orbs Quests Video Skip Button
-// @name:zh-TW  【對不起,Discord!】 DC Orbs 任務影片跳過按鈕
-// @name:zh-CN  【对不起,Discord!】 DC Orbs 任务视频跳过按钮
-// @name:ja     【すみません,Discord!】 DC Orbs クエスト動画スキップボタン
-// @name:ko     【죄송합니다,Discord!】 DC Orbs 퀘스트 동영상 건너뛰기 버튼
 // @namespace   https://github.com/NiktoBlox/Tampermonkey-Scripts/
-// @version     0.4
+// @version     0.5
 // @description 🔒 99% Safe & Account Ban-Free Script — Floating draggable skip button for Discord Orbs Quests Videos
-// @description:zh-TW 🔒 99% 安全且不會封禁帳號的腳本 — 可拖曳的懸浮按鈕，用於跳過 Discord Orbs 任務影片
-// @description:zh-CN 🔒 99% 安全且不会封禁账号的脚本 — 可拖拽的悬浮按钮，用于跳过 Discord Orbs 任务视频
-// @description:ja  🔒 99% 安全・アカウントBANリスクなしスクリプト — Discord Orbs クエスト動画をスキップするためのドラッグ可能なフローティングボタン
-// @description:ko  🔒 99% 안전 & 계정 차단 없는 스크립트 — Discord Orbs 퀘스트 동영상을 건너뛰기 위한 드래그 가능한 플로팅 버튼
+// @updateURL   https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/DISCORD-Orbs-Video-Skip.user.js
+// @downloadURL https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/DISCORD-Orbs-Video-Skip.user.js
 // @author      xXSalamanderXx
 // @license     MIT
 // @match       https://discord.com/*
