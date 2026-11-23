@@ -24,7 +24,7 @@
     const key = `enabled:${location.origin}`;
     const enabled = GM_getValue(key, true);
     if (window === window.top) {
-        GM_registerMenuCommand(enabled ? 'Disable on this origin' : 'Enable on this origin', () => {
+        GM_registerMenuCommand(enabled ? 'Disable on this webpage' : 'Enable on this webpage', () => {
             GM_setValue(key, !enabled);
             location.reload();
         });
