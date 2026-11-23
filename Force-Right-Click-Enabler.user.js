@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Force Right Click Enabler
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      0.0.1
+// @version      0.0.2
 // @description  Restore native context menus, text selection, and copy without changing cursors.
 // @author       xXSalamanderXx
 // @match        http://*/*
