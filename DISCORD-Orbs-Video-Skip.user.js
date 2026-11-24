@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         DISCORD-Orbs-Video-Skip
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.5.0
+// @version      2.6.0
 // @description  Bypass ads for Discord Orbs with this smart helper script.
 // @author       xXSalamanderXx
 // @match        https://discord.com/quest-home*
@@ -24,8 +24,8 @@
     return QUEST_HOME_PATTERN.test(location.pathname + location.search);
   }
 
-  // If this userscript is somehow injected on a non-Quest-Home URL, exit before
-  // creating any DOM, listeners, timers, or patches.
+  // If injected on a non-Quest-Home URL, exit before creating any DOM,
+  // listeners, timers, or global patches.
   if (!isQuestHome()) return;
 
   const CONFIG = {
@@ -81,11 +81,6 @@
 
     runCleanups();
 
-    if (routeTimer) {
-      clearInterval(routeTimer);
-      routeTimer = null;
-    }
-
     if (host) {
       host.remove();
     }
@@ -98,12 +93,18 @@
   function ensureUI() {
     if (host && host.isConnected) return ui;
 
+    // Discord may still be rebuilding its SPA shell when the route changes.
+    if (!document.body) return null;
+
     host = document.createElement('div');
     host.id = 'orbs-simple-host';
 
-    // The host is only a mount point. It must not participate in Discord's
-    // document flow, create a containing block for fixed children, or receive
-    // pointer/wheel events.
+    // Mount on <html>, not <body>. This keeps the helper out of Discord's body
+    // layout and any body-level flex/grid or mutation-sensitive behaviour.
+    //
+    // The host has no z-index, transform, filter, opacity, or contain property,
+    // so it does not create a stacking context or containing block. The panel
+    // and orb can therefore use normal viewport-fixed positioning.
     host.style.cssText = [
       'position:fixed',
       'top:0',
@@ -115,14 +116,13 @@
       'border:0',
       'background:transparent',
       'overflow:visible',
-      'pointer-events:none',
-      'z-index:2147483647'
+      'pointer-events:none'
     ].join(';');
 
     host.setAttribute('aria-hidden', 'true');
     host.setAttribute('role', 'presentation');
 
-    document.body.append(host);
+    document.documentElement.append(host);
     shadow = host.attachShadow({ mode: 'open' });
 
     shadow.innerHTML = `
@@ -957,8 +957,13 @@
   function startRouteWatcher() {
     if (routeTimer) return;
 
-    // This is the only persistent background work. It performs one URL-string
-    // check per tick and does not touch Discord DOM unless the route changes.
+    // Persistent but extremely cheap route watcher. This is required because
+    // Discord is a SPA: navigating away does not reload the page, and returning
+    // to Quest Home may occur after Discord has rebuilt its UI.
+    //
+    // Each tick performs only a URL comparison. It creates the UI when Quest
+    // Home becomes active, including after a slow load, and removes every trace
+    // of the helper when the user navigates elsewhere.
     routeTimer = setInterval(() => {
       if (isQuestHome()) {
         if (!host || !host.isConnected) {
@@ -967,9 +972,10 @@
         return;
       }
 
-      // Leaving Quest Home: remove every trace of the helper, including the orb.
-      teardown();
-    }, 500);
+      if (host || active) {
+        teardown();
+      }
+    }, 300);
   }
 
   window.addEventListener('pagehide', () => {
@@ -980,8 +986,8 @@
     }
   });
 
-  // Initial mount. The route watcher then keeps the helper visible only while
-  // the URL remains on Quest Home.
+  // Initial mount. The persistent route watcher then handles both slow Quest
+  // Home loads and later SPA navigation without requiring a manual refresh.
   ensureUI();
   startRouteWatcher();
 })();
