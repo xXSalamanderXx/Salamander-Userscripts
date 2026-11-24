@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         DISCORD-Orbs-Video-Skip
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.8.0
+// @version      2.9.0
 // @description  Bypass ads for Discord Orbs with this smart helper script.
 // @author       xXSalamanderXx
 // @match        https://discord.com/*
@@ -44,6 +44,8 @@
     frame: '[data-testid="discord-web-video-player-frame"]'
   };
 
+  const TOP_Z = '2147483647';
+
   let active = null;
   let host = null;
   let shadow = null;
@@ -85,8 +87,8 @@
       host.remove();
     }
 
-    // Remove any duplicate hosts that may have been left by an earlier
-    // version or an interrupted mount. This prevents element/memory buildup.
+    // Remove any duplicate hosts that may have been left by an earlier version
+    // or an interrupted mount. This prevents element/memory buildup.
     document
       .querySelectorAll('#orbs-simple-host')
       .forEach((duplicate) => duplicate.remove());
@@ -118,15 +120,20 @@
 
     if (host && host.isConnected) return ui;
 
-    // Discord may still be rebuilding its SPA shell when the route changes.
-    if (!document.body) return null;
+    // Wait until Discord's document shell is actually available. The route
+    // watcher will call this again on the next tick if it is not ready yet.
+    if (!document.documentElement || !document.body) return null;
 
     host = document.createElement('div');
     host.id = 'orbs-simple-host';
 
-    // The host is only a mount point. It must not participate in Discord's
-    // document flow, create a containing block for fixed children, or receive
-    // pointer/wheel events.
+    // Mount on <html>, not <body>. This keeps the helper outside Discord's
+    // body-level layout and any body flex/grid or mutation-sensitive behaviour.
+    //
+    // The host uses the maximum z-index and is appended as the final child of
+    // <html>, so the shadow UI wins stacking ties against Discord overlays.
+    // It has no contain/transform/filter/opacity that could create a containing
+    // block or interfere with Discord's chat scroll container.
     host.style.cssText = [
       'position:fixed',
       'top:0',
@@ -138,6 +145,7 @@
       'border:0',
       'background:transparent',
       'overflow:visible',
+      `z-index:${TOP_Z}`,
       'pointer-events:none',
       'user-select:none'
     ].join(';');
@@ -145,7 +153,7 @@
     host.setAttribute('aria-hidden', 'true');
     host.setAttribute('role', 'presentation');
 
-    document.body.append(host);
+    document.documentElement.append(host);
     shadow = host.attachShadow({ mode: 'open' });
 
     shadow.innerHTML = `
@@ -166,7 +174,7 @@
           width: 330px;
           max-width: calc(100vw - 20px);
           max-height: calc(100dvh - 20px);
-          z-index: 2147483647;
+          z-index: ${TOP_Z};
           background: linear-gradient(145deg, #272232, #191a22);
           border: 1px solid #a978ee55;
           border-radius: 16px;
@@ -256,7 +264,7 @@
           width: 50px;
           height: 50px;
           border-radius: 50%;
-          z-index: 2147483647;
+          z-index: ${TOP_Z};
           border: 1px solid #ddaaffaa;
           background: radial-gradient(circle at 33% 25%, #efd2ff, #ba7aff 18%, #7d40cf 48%, #302268 85%);
           box-shadow: 0 0 22px #a459ff70;
@@ -912,6 +920,13 @@
     const removeViewportListeners = () => {
       window.removeEventListener('resize', queueClamp);
       window.removeEventListener('orientationchange', queueClamp);
+      window.removeEventListener('load', handleLoad);
+    };
+
+    const handleLoad = () => {
+      if (isQuestHome()) {
+        ensureUI();
+      }
     };
 
     onCleanup(removeViewportListeners);
@@ -976,6 +991,7 @@
     // events, which can interfere with Discord's chat scrolling.
     window.addEventListener('resize', queueClamp, { passive: true });
     window.addEventListener('orientationchange', queueClamp, { passive: true });
+    window.addEventListener('load', handleLoad, { once: true });
 
     queueClamp();
   }
@@ -984,9 +1000,9 @@
     if (routeTimer) return;
 
     // Persistent but extremely cheap route watcher. It performs one URL-string
-    // comparison per tick. It creates at most one helper host, removes stale or
-    // duplicate hosts, and removes every trace of the helper when the user
-    // navigates away from Quest Home.
+    // comparison per tick. It creates at most one helper host, waits for the
+    // document shell when Quest Home loads slowly, removes stale or duplicate
+    // hosts, and removes every trace of the helper when the user navigates away.
     routeTimer = setInterval(() => {
       if (isQuestHome()) {
         if (!host || !host.isConnected) {
