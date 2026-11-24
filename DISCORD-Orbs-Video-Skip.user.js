@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         DISCORD-Orbs-Video-Skip
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.6.0
+// @version      2.7.0
 // @description  Bypass ads for Discord Orbs with this smart helper script.
 // @author       xXSalamanderXx
-// @match        https://discord.com/quest-home*
+// @match        https://discord.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=discord.com
 // @grant        none
 // @run-at       document-idle
@@ -23,10 +23,6 @@
   function isQuestHome() {
     return QUEST_HOME_PATTERN.test(location.pathname + location.search);
   }
-
-  // If injected on a non-Quest-Home URL, exit before creating any DOM,
-  // listeners, timers, or global patches.
-  if (!isQuestHome()) return;
 
   const CONFIG = {
     claimWaitMs: 10000,
@@ -82,6 +78,12 @@
     runCleanups();
 
     if (host) {
+      // Clear the shadow tree first, then remove the host. This ensures no
+      // helper element, event target, or shadow listener can remain reachable.
+      if (shadow) {
+        shadow.replaceChildren();
+      }
+
       host.remove();
     }
 
@@ -99,12 +101,9 @@
     host = document.createElement('div');
     host.id = 'orbs-simple-host';
 
-    // Mount on <html>, not <body>. This keeps the helper out of Discord's body
-    // layout and any body-level flex/grid or mutation-sensitive behaviour.
-    //
-    // The host has no z-index, transform, filter, opacity, or contain property,
-    // so it does not create a stacking context or containing block. The panel
-    // and orb can therefore use normal viewport-fixed positioning.
+    // The host is only a mount point. It must not participate in Discord's
+    // document flow, create a containing block for fixed children, or receive
+    // pointer/wheel events.
     host.style.cssText = [
       'position:fixed',
       'top:0',
@@ -116,13 +115,14 @@
       'border:0',
       'background:transparent',
       'overflow:visible',
-      'pointer-events:none'
+      'pointer-events:none',
+      'user-select:none'
     ].join(';');
 
     host.setAttribute('aria-hidden', 'true');
     host.setAttribute('role', 'presentation');
 
-    document.documentElement.append(host);
+    document.body.append(host);
     shadow = host.attachShadow({ mode: 'open' });
 
     shadow.innerHTML = `
@@ -152,6 +152,7 @@
           display: flex;
           flex-direction: column;
           pointer-events: auto;
+          overscroll-behavior: contain;
         }
 
         #header {
@@ -171,6 +172,7 @@
           padding: 15px;
           overflow: auto;
           min-height: 0;
+          overscroll-behavior: contain;
         }
 
         button {
@@ -236,6 +238,7 @@
           background: radial-gradient(circle at 33% 25%, #efd2ff, #ba7aff 18%, #7d40cf 48%, #302268 85%);
           box-shadow: 0 0 22px #a459ff70;
           pointer-events: auto;
+          overscroll-behavior: contain;
         }
 
         #copy {
@@ -957,13 +960,10 @@
   function startRouteWatcher() {
     if (routeTimer) return;
 
-    // Persistent but extremely cheap route watcher. This is required because
-    // Discord is a SPA: navigating away does not reload the page, and returning
-    // to Quest Home may occur after Discord has rebuilt its UI.
-    //
-    // Each tick performs only a URL comparison. It creates the UI when Quest
-    // Home becomes active, including after a slow load, and removes every trace
-    // of the helper when the user navigates elsewhere.
+    // This is the only persistent background work. It performs one URL-string
+    // comparison per tick. It creates the helper when Quest Home becomes active
+    // (including after a slow SPA load) and removes every trace of it when the
+    // user navigates elsewhere.
     routeTimer = setInterval(() => {
       if (isQuestHome()) {
         if (!host || !host.isConnected) {
@@ -975,19 +975,33 @@
       if (host || active) {
         teardown();
       }
-    }, 300);
+    }, 250);
   }
 
-  window.addEventListener('pagehide', () => {
-    if (active) {
-      active.cancelled = true;
-      restoreVideo(active);
-      active = null;
-    }
-  });
+  function installLifecycleCleanup() {
+    const handlePageHide = () => {
+      if (active) {
+        active.cancelled = true;
+        restoreVideo(active);
+        active = null;
+      }
+    };
 
-  // Initial mount. The persistent route watcher then handles both slow Quest
-  // Home loads and later SPA navigation without requiring a manual refresh.
-  ensureUI();
+    window.addEventListener('pagehide', handlePageHide);
+
+    onCleanup(() => {
+      window.removeEventListener('pagehide', handlePageHide);
+    });
+  }
+
+  // On a normal channel/server page, this userscript remains completely
+  // dormant: no helper DOM, no panel, no orb, and no playback work. It only
+  // maintains the tiny route watcher required to detect a later SPA move into
+  // Quest Home.
+  if (isQuestHome()) {
+    ensureUI();
+  }
+
+  installLifecycleCleanup();
   startRouteWatcher();
 })();
