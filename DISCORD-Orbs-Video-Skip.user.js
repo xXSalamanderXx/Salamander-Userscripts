@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         DISCORD-Orbs-Video-Skip
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.7.0
+// @version      2.8.0
 // @description  Bypass ads for Discord Orbs with this smart helper script.
 // @author       xXSalamanderXx
 // @match        https://discord.com/*
@@ -78,8 +78,6 @@
     runCleanups();
 
     if (host) {
-      // Clear the shadow tree first, then remove the host. This ensures no
-      // helper element, event target, or shadow listener can remain reachable.
       if (shadow) {
         shadow.replaceChildren();
       }
@@ -87,12 +85,37 @@
       host.remove();
     }
 
+    // Remove any duplicate hosts that may have been left by an earlier
+    // version or an interrupted mount. This prevents element/memory buildup.
+    document
+      .querySelectorAll('#orbs-simple-host')
+      .forEach((duplicate) => duplicate.remove());
+
     host = null;
     shadow = null;
     ui = null;
   }
 
   function ensureUI() {
+    // Critical guard: never allow multiple hosts to accumulate if Discord
+    // detaches and recreates its body content during SPA navigation.
+    const existing = document.getElementById('orbs-simple-host');
+
+    if (existing && existing !== host) {
+      existing.remove();
+    }
+
+    if (host && !host.isConnected) {
+      if (shadow) {
+        shadow.replaceChildren();
+      }
+
+      host.remove();
+      host = null;
+      shadow = null;
+      ui = null;
+    }
+
     if (host && host.isConnected) return ui;
 
     // Discord may still be rebuilding its SPA shell when the route changes.
@@ -143,7 +166,7 @@
           width: 330px;
           max-width: calc(100vw - 20px);
           max-height: calc(100dvh - 20px);
-          z-index: 2147483646;
+          z-index: 2147483647;
           background: linear-gradient(145deg, #272232, #191a22);
           border: 1px solid #a978ee55;
           border-radius: 16px;
@@ -233,7 +256,7 @@
           width: 50px;
           height: 50px;
           border-radius: 50%;
-          z-index: 2147483646;
+          z-index: 2147483647;
           border: 1px solid #ddaaffaa;
           background: radial-gradient(circle at 33% 25%, #efd2ff, #ba7aff 18%, #7d40cf 48%, #302268 85%);
           box-shadow: 0 0 22px #a459ff70;
@@ -960,10 +983,10 @@
   function startRouteWatcher() {
     if (routeTimer) return;
 
-    // This is the only persistent background work. It performs one URL-string
-    // comparison per tick. It creates the helper when Quest Home becomes active
-    // (including after a slow SPA load) and removes every trace of it when the
-    // user navigates elsewhere.
+    // Persistent but extremely cheap route watcher. It performs one URL-string
+    // comparison per tick. It creates at most one helper host, removes stale or
+    // duplicate hosts, and removes every trace of the helper when the user
+    // navigates away from Quest Home.
     routeTimer = setInterval(() => {
       if (isQuestHome()) {
         if (!host || !host.isConnected) {
