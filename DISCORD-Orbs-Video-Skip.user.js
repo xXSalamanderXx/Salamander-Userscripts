@@ -1,94 +1,881 @@
 // ==UserScript==
 // @name         DISCORD-Orbs-Video-Skip
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.1.8
-// @description  One-button quest playback with progressively slower retries and claim-readiness checks.
+// @version      2.2.0
+// @description  Manual quest-video playback helper for Discord Quest Home only, with progressively slower fallbacks and claim-readiness checks.
 // @author       xXSalamanderXx
-// @match        https://discord.com/*
+// @match        https://discord.com/quest-home*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=discord.com
 // @grant        none
 // @run-at       document-idle
 // ==/UserScript==
+
 /* Manual start only. No API calls, CAPTCHA solving, or automatic claims.
    An enabled Claim button does not mean a reward has been received. */
+
 (() => {
-'use strict';
-if (window.top !== window.self || document.getElementById('orbs-simple-host')) return;
-const CONFIG = {claimWaitMs:10000,fallbackWaitMs:10000,stallMs:20000,
- plans:[{rate:16,seek:true},{rate:16},{rate:8},{rate:4},{rate:2},{rate:1}]};
-const host=document.createElement('div');host.id='orbs-simple-host';document.body.append(host);
-const shadow=host.attachShadow({mode:'open'});
-shadow.innerHTML=`<style>
-:host{all:initial;color:#dbdee1;font:13px/1.5 system-ui}*{box-sizing:border-box}[hidden]{display:none!important}
-#panel{position:fixed;right:18px;bottom:18px;width:330px;max-width:calc(100vw - 20px);max-height:calc(100dvh - 20px);z-index:2147483646;background:linear-gradient(145deg,#272232,#191a22);border:1px solid #a978ee55;border-radius:16px;box-shadow:0 16px 50px #0009;overflow:hidden;display:flex;flex-direction:column}
-#header{display:flex;align-items:center;justify-content:space-between;padding:13px 14px;cursor:grab;touch-action:none;user-select:none;border-bottom:1px solid #b78af51c}h2{margin:0;font-size:14px;color:white}#content{padding:15px;overflow:auto;min-height:0}button{cursor:pointer;color:white;background:#6539a8;border:0;border-radius:12px}button:focus-visible{outline:2px solid #b9c2ff}#minimise{width:30px;height:30px;background:#ffffff09;font-size:21px}#watch{width:100%;padding:16px 10px;font:700 15px system-ui;background:linear-gradient(125deg,#6539a8,#4937a0);box-shadow:0 0 17px #a058ff60}small{display:block;margin-top:9px;color:#b5bac1}#status{padding:10px;background:#ffffff09;border-radius:10px;margin:12px 0;overflow-wrap:anywhere}summary{cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:220px;overflow:auto;background:#111214;border-radius:9px;padding:10px}#orb{position:fixed;right:20px;bottom:20px;width:50px;height:50px;border-radius:50%;z-index:2147483646;border:1px solid #ddaaffaa;background:radial-gradient(circle at 33% 25%,#efd2ff,#ba7aff 18%,#7d40cf 48%,#302268 85%);box-shadow:0 0 22px #a459ff70}#copy{background:none;color:#c8a5ff;text-decoration:underline;padding:5px 0}#log.empty{color:#94909c;font-style:italic}
-</style><section id="panel"><header id="header"><h2>Discord Orbs Video Skip</h2><button id="minimise" aria-label="Minimise to orb">−</button></header><div id="content"><button id="watch">I started watching</button><small>Script will attempt to speed up or skip the video with fallback options provided automatically</small><div id="status" role="status">Open an Orbs video and click the button above once it starts playing</div><details><summary>Logs</summary><pre id="log" class="empty">No logs yet..</pre></details><button id="copy" type="button">Click here to copy logs</button> <span id="copy-status" role="status"></span></div></section><button id="orb" hidden aria-label="Open Discord Orbs Video Skip"></button>`;
-const $=id=>shadow.getElementById(id), lines=[];
-let active=null;
-function log(text,kind='info'){lines.push(`[${new Date().toLocaleTimeString()}] [${kind.toUpperCase()}] ${text}`);if(lines.length>300)lines.shift();$('log').classList.remove('empty');$('log').textContent=lines.join('\n');$('status').textContent=text;console.info('[Orbs]',text);}
-function shown(e){if(!e?.isConnected||e.closest('[hidden],[aria-hidden="true"]'))return false;for(let n=e;n instanceof Element;n=n.parentElement){const s=getComputedStyle(n);if(s.display==='none'||s.visibility==='hidden'||Number(s.opacity)===0)return false;}const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&r.bottom>0&&r.right>0&&r.top<innerHeight&&r.left<innerWidth;}
-function scopeFor(v){const dialog=v.closest('[role="dialog"],dialog');if(dialog)return dialog;let n=v.closest('[data-testid="discord-web-video-player-container"]');if(!n)return null;const base=n;for(let i=0;i<4&&n.parentElement&&n.parentElement!==document.body;i++){n=n.parentElement;if(n.querySelectorAll('video[data-testid="discord-web-video-player-video"]').length>1)break;if(/\b(claim|collect|quest|orbs)\b/i.test(n.textContent||''))return n;}return base;}
-function choose(){const all=[...document.querySelectorAll('video')];let vs=all.filter(v=>!v.loop&&shown(v)&&!v.error&&Number.isFinite(v.duration)&&v.duration>0&&v.matches('video[data-testid="discord-web-video-player-video"],[data-testid="discord-web-video-player-container"] video,[data-testid="discord-web-video-player-frame"] video'));const ds=vs.filter(v=>v.closest('[role="dialog"],dialog'));if(ds.length)vs=ds;log(`Manual selection: ${all.length} videos on page, ${vs.length} eligible non-looping Discord players.`);if(!vs.length)throw Error('No loaded Orbs player found. Keep the quest video open and visible, then press I started watching again.');let v=vs[0];if(vs.length>1){const a=prompt('Choose the Orbs player number:\n'+vs.map((v,i)=>{const r=v.getBoundingClientRect();return `${i+1}: ${Math.round(v.duration)} sec, ${Math.round(r.width)}×${Math.round(r.height)}`;}).join('\n'));if(a===null)throw Error('Selection cancelled.');const i=Number(a)-1;if(!Number.isInteger(i)||!vs[i])throw Error('Invalid player number.');v=vs[i];}const scope=scopeFor(v);if(!scope)throw Error('Could not identify the player container.');return {video:v,scope,src:v.currentSrc||v.src};}
-function captcha(){return [...document.querySelectorAll('iframe')].some(f=>shown(f)&&f.getBoundingClientRect().height>80&&/captcha|challenges\.cloudflare/i.test(f.src+' '+f.title))||[...document.querySelectorAll('[role="dialog"],[role="alert"]')].some(e=>shown(e)&&/verify (?:that )?you are human|complete (?:the )?captcha|human verification/i.test(e.textContent||''));}
-function check(r){if(active!==r||r.cancelled)throw Error('CANCELLED');if(captcha())throw Error('CAPTCHA');if(!r.video.isConnected||!r.scope.isConnected||(r.src&&(r.video.currentSrc||r.video.src)!==r.src))throw Error('PLAYER_CHANGED');}
-async function wait(ms,r){const until=Date.now()+ms;while(Date.now()<until){check(r);await new Promise(ok=>setTimeout(ok,Math.min(200,until-Date.now())));}check(r);}
-function claimState(r){const matches=[...r.scope.querySelectorAll('button,[role="button"]')].filter(b=>shown(b)&&/^(claim|collect)(?:\s+(?:reward|orbs?))?(?:\s*\(?[\d,]+\)?)?$/i.test((b.getAttribute('aria-label')||b.textContent||'').trim()));return matches.some(b=>!b.disabled&&!b.hasAttribute('disabled')&&b.getAttribute('aria-disabled')!=='true'&&!b.matches('[class*="disabled"],[class*="Disabled"]'))?'ready':matches.length?'locked':'missing';}
-function errorText(r){return [...r.scope.querySelectorAll('[role="alert"]')].filter(shown).map(e=>(e.textContent||'').trim()).find(t=>/error|failed|try again|something went wrong/i.test(t))||'';}
-function suppress(r){const v=r.video;v.muted=true;v.volume=0;v.style.setProperty('opacity','0','important');r.mask=true;}
-function restore(r){r.mask=false;const v=r.video;try{v.pause();v.muted=r.original.muted;v.volume=r.original.volume;v.playbackRate=r.original.rate;if(r.original.opacity)v.style.setProperty('opacity',r.original.opacity,r.original.priority);else v.style.removeProperty('opacity');}catch{}}
-function cancel(){const r=active;if(!r)return;active=null;r.cancelled=true;restore(r);$('watch').textContent='I started watching';log('Stopped. Video paused and original audio, speed and visibility restored.');}
-const restartTip='Please wait for fallback methods to unlock the "collect" button.';
-async function play(r,plan){
- check(r);suppress(r);log(`Attempt ${r.index+1}/${CONFIG.plans.length}: ${plan.rate}x${plan.seek?', incremental seeks':''}.`);
- const v=r.video;v.pause();v.playbackRate=plan.rate;v.currentTime=0;
- await Promise.race([v.play(),wait(15000,r).then(()=>{throw Error('Playback start timed out.');})]);check(r);
- let last=v.currentTime,lastMove=Date.now(),seek=Date.now()+4000,progress=0,pauseAt=0,clampReported=false;
- const end=Date.now()+Math.max(120000,(v.duration+90)*1000);
- while(!v.ended){await wait(300,r);suppress(r);if(v.error)throw Error(`Media error ${v.error.code}.`);if(Date.now()>end)throw Error('Playback watchdog expired.');if(v.currentTime>last+.02){last=v.currentTime;lastMove=Date.now();}if(Date.now()-lastMove>CONFIG.stallMs)throw Error('Playback stalled for 20 seconds.');if(v.playbackRate!==plan.rate&&!clampReported){clampReported=true;log(`Discord/browser changed requested ${plan.rate}x to ${v.playbackRate}x. Not repeatedly forcing the speed.`);}if(v.paused&&!v.ended&&Date.now()-pauseAt>4000){pauseAt=Date.now();await Promise.race([v.play(),wait(10000,r).then(()=>{throw Error('Resume timed out.');})]);}if(plan.seek&&Date.now()>seek&&v.duration-v.currentTime>5){v.currentTime=Math.min(v.duration-3,v.currentTime+Math.min(8,v.duration/10));seek=Date.now()+4000;}if(Date.now()-progress>5000){progress=Date.now();log(`${Math.round(100*v.currentTime/v.duration)}% media position · actual ${v.playbackRate}x.`);}}
- log(`Video ended. Waiting up to ${CONFIG.claimWaitMs/1000} seconds for Claim/Collect to unlock. ${restartTip}`);
-}
-async function verify(r){const end=Date.now()+CONFIG.claimWaitMs;let state='missing';while(Date.now()<end){check(r);suppress(r);state=claimState(r);if(state==='ready')return 'ready';const e=errorText(r);if(e)throw Error(e.slice(0,250));await wait(500,r);}return state;}
-async function start(){
- if(active){cancel();return;}
- let r;
- try{
- log('I started watching pressed. Selecting the quest player.');
- const picked=choose(),v=picked.video;
- r={...picked,index:0,cancelled:false,mask:false,original:{muted:v.muted,volume:v.volume,rate:v.playbackRate,opacity:v.style.getPropertyValue('opacity'),priority:v.style.getPropertyPriority('opacity')}};
- active=r;$('watch').textContent='Stop attempt';
- suppress(r);r.enforce=()=>{if(active===r&&r.mask&&(v.volume!==0||!v.muted))suppress(r);};v.addEventListener('volumechange',r.enforce);
- log('Player selected. Preparing playback attempts.');
- check(r);if(claimState(r)==='ready'){log('Claim button unlocked! Click it to claim Orbs.');return;}
- for(let i=0;i<CONFIG.plans.length;i++){
-  r.index=i;
-  try{await play(r,CONFIG.plans[i]);const result=await verify(r);if(result==='ready'){log('Claim button unlocked! Click it to claim Orbs.');return;}
-   if(result==='locked')log('Claim/Collect is still disabled after playback.','warning');
-   else{log('No Claim/Collect button was identifiable in this player. Cannot verify completion. Player restored; check Discord manually.','warning');return;}
-  }catch(e){if(['CANCELLED','CAPTCHA','PLAYER_CHANGED'].includes(e.message))throw e;if(e.name==='NotAllowedError')throw Error('Browser blocked playback. Press Play in Discord and start again.');log(`Attempt failed: ${e.message}`,'error');}
-  if(i+1<CONFIG.plans.length){const next=CONFIG.plans[i+1];log(`Waiting ${CONFIG.fallbackWaitMs/1000} seconds before the next fallback: ${next.rate}x${next.seek?' with seeks':' without seeks'}. ${restartTip}`);await wait(CONFIG.fallbackWaitMs,r);}
- }
- log('All attempts, including 1x, exhausted. Claim readiness was not verified. Player restored; watch normally in Discord.','warning');
- }catch(e){if(e.message==='CAPTCHA')log('CAPTCHA — not an error. Player restored. Complete it in Discord, then press I started watching to try again.','captcha');else if(e.message==='PLAYER_CHANGED')log('Selected video was removed or changed. Player restored; reopen the quest and start again.','error');else if(e.message!=='CANCELLED')log(e.message,'error');}
- finally{if(r){r.video.removeEventListener('volumechange',r.enforce);if(active===r){restore(r);active=null;$('watch').textContent='I started watching';}}}
-}
-$('watch').onclick=start;
-let copyTimer=null,copyRequest=0;
-$('copy').onclick=async()=>{
- const request=++copyRequest,feedback=$('copy-status');clearTimeout(copyTimer);feedback.textContent='';
- if(!lines.length){feedback.textContent='No logs yet..';copyTimer=setTimeout(()=>{if(request===copyRequest)feedback.textContent='';},5000);return;}
- const text=lines.join('\n');let copied=false;
- try{await navigator.clipboard.writeText(text);copied=true;}catch{const t=document.createElement('textarea');t.value=text;t.style.cssText='position:fixed;top:0;left:0;opacity:0';shadow.append(t);t.focus();t.select();try{copied=document.execCommand('copy');}catch{}t.remove();}
- if(request!==copyRequest)return;
- feedback.textContent=copied?'Logs Copied':'Clipboard blocked. Expand Logs and copy the text manually.';
- if(copied)copyTimer=setTimeout(()=>{if(request===copyRequest)feedback.textContent='';},5000);
-};
-const panel=$('panel'),handle=$('header');let dragging=null,clampQueued=false;
-function clampPanel(){clampQueued=false;if(panel.hidden)return;const vp=window.visualViewport;const left=vp?.offsetLeft||0,top=vp?.offsetTop||0,w=vp?.width||innerWidth,h=vp?.height||innerHeight;panel.style.maxWidth=`${Math.max(1,w-20)}px`;panel.style.maxHeight=`${Math.max(1,h-20)}px`;const rect=panel.getBoundingClientRect();panel.style.left=`${Math.max(left+10,Math.min(rect.left,left+w-rect.width-10))}px`;panel.style.top=`${Math.max(top+10,Math.min(rect.top,top+h-rect.height-10))}px`;panel.style.right='auto';panel.style.bottom='auto';}
-function queueClamp(){if(!clampQueued){clampQueued=true;requestAnimationFrame(clampPanel);}}
-$('minimise').onclick=()=>{panel.hidden=true;$('orb').hidden=false;$('orb').focus();};$('orb').onclick=()=>{panel.hidden=false;$('orb').hidden=true;queueClamp();$('watch').focus({preventScroll:true});};
-handle.addEventListener('pointerdown',e=>{if(e.button!==0||e.target.closest('button'))return;const rect=panel.getBoundingClientRect();dragging={id:e.pointerId,x:e.clientX,y:e.clientY,left:rect.left,top:rect.top};handle.setPointerCapture(e.pointerId);e.preventDefault();});
-handle.addEventListener('pointermove',e=>{if(!dragging||dragging.id!==e.pointerId)return;panel.style.left=`${dragging.left+e.clientX-dragging.x}px`;panel.style.top=`${dragging.top+e.clientY-dragging.y}px`;panel.style.right='auto';panel.style.bottom='auto';clampPanel();});
-function endDrag(e){if(dragging&&dragging.id===e.pointerId){dragging=null;queueClamp();}}
-handle.addEventListener('pointerup',endDrag);handle.addEventListener('pointercancel',endDrag);handle.addEventListener('lostpointercapture',endDrag);addEventListener('resize',queueClamp);window.visualViewport?.addEventListener('resize',queueClamp);window.visualViewport?.addEventListener('scroll',queueClamp);new ResizeObserver(queueClamp).observe(panel);queueClamp();
-addEventListener('pagehide',()=>{if(active){active.cancelled=true;restore(active);active=null;}});
+  'use strict';
+
+  // Hard scope guard: never create UI or observe Discord outside Quest Home.
+  if (window.top !== window.self) return;
+  if (!/^\/quest-home(?:\/|$|\?|#)/.test(location.pathname + location.search)) return;
+  if (document.getElementById('orbs-simple-host')) return;
+
+  const CONFIG = {
+    claimWaitMs: 10000,
+    fallbackWaitMs: 10000,
+    stallMs: 20000,
+    plans: [
+      { rate: 16, seek: true },
+      { rate: 16 },
+      { rate: 8 },
+      { rate: 4 },
+      { rate: 2 },
+      { rate: 1 }
+    ]
+  };
+
+  const SELECTORS = {
+    video: 'video[data-testid="discord-web-video-player-video"]',
+    container: '[data-testid="discord-web-video-player-container"]',
+    frame: '[data-testid="discord-web-video-player-frame"]'
+  };
+
+  let active = null;
+  let host = null;
+  let shadow = null;
+  let ui = null;
+
+  function ensureUI() {
+    if (host && host.isConnected) return ui;
+
+    host = document.createElement('div');
+    host.id = 'orbs-simple-host';
+    document.body.append(host);
+
+    shadow = host.attachShadow({ mode: 'open' });
+    shadow.innerHTML = `
+      <style>
+        :host {
+          all: initial;
+          color: #dbdee1;
+          font: 13px/1.5 system-ui, sans-serif;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; }
+        [hidden] { display: none !important; }
+
+        #panel {
+          position: fixed;
+          right: 18px;
+          bottom: 18px;
+          width: 330px;
+          max-width: calc(100vw - 20px);
+          max-height: calc(100dvh - 20px);
+          z-index: 2147483646;
+          background: linear-gradient(145deg, #272232, #191a22);
+          border: 1px solid #a978ee55;
+          border-radius: 16px;
+          box-shadow: 0 16px 50px #0009;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        }
+
+        #header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 13px 14px;
+          cursor: grab;
+          touch-action: none;
+          user-select: none;
+          border-bottom: 1px solid #b78af51c;
+        }
+
+        h2 { margin: 0; font-size: 14px; color: #fff; }
+
+        #content {
+          padding: 15px;
+          overflow: auto;
+          min-height: 0;
+        }
+
+        button {
+          cursor: pointer;
+          color: #fff;
+          background: #6539a8;
+          border: 0;
+          border-radius: 12px;
+        }
+
+        button:focus-visible { outline: 2px solid #b9c2ff; }
+
+        #minimise {
+          width: 30px;
+          height: 30px;
+          background: #ffffff09;
+          font-size: 21px;
+        }
+
+        #watch {
+          width: 100%;
+          padding: 16px 10px;
+          font: 700 15px system-ui, sans-serif;
+          background: linear-gradient(125deg, #6539a8, #4937a0);
+          box-shadow: 0 0 17px #a058ff60;
+        }
+
+        small {
+          display: block;
+          margin-top: 9px;
+          color: #b5bac1;
+        }
+
+        #status {
+          padding: 10px;
+          background: #ffffff09;
+          border-radius: 10px;
+          margin: 12px 0;
+          overflow-wrap: anywhere;
+        }
+
+        summary { cursor: pointer; }
+
+        pre {
+          white-space: pre-wrap;
+          overflow-wrap: anywhere;
+          max-height: 220px;
+          overflow: auto;
+          background: #111214;
+          border-radius: 9px;
+          padding: 10px;
+        }
+
+        #orb {
+          position: fixed;
+          right: 20px;
+          bottom: 20px;
+          width: 50px;
+          height: 50px;
+          border-radius: 50%;
+          z-index: 2147483646;
+          border: 1px solid #ddaaffaa;
+          background: radial-gradient(circle at 33% 25%, #efd2ff, #ba7aff 18%, #7d40cf 48%, #302268 85%);
+          box-shadow: 0 0 22px #a459ff70;
+        }
+
+        #copy {
+          background: none;
+          color: #c8a5ff;
+          text-decoration: underline;
+          padding: 5px 0;
+        }
+
+        #log.empty {
+          color: #94909c;
+          font-style: italic;
+        }
+      </style>
+
+      <section id="panel">
+        <header id="header">
+          <h2>Discord Orbs Video Skip</h2>
+          <button id="minimise" aria-label="Minimise to orb">−</button>
+        </header>
+
+        <div id="content">
+          <button id="watch">I started watching</button>
+          <small>Script will attempt to speed up or skip the video with fallback options provided automatically.</small>
+
+          <div id="status" role="status">
+            Open an Orbs video and click the button above once it starts playing.
+          </div>
+
+          <details>
+            <summary>Logs</summary>
+            <pre id="log" class="empty">No logs yet..</pre>
+          </details>
+
+          <button id="copy" type="button">Click here to copy logs</button>
+          <span id="copy-status" role="status"></span>
+        </div>
+      </section>
+
+      <button id="orb" hidden aria-label="Open Discord Orbs Video Skip"></button>
+    `;
+
+    ui = {
+      panel: shadow.getElementById('panel'),
+      header: shadow.getElementById('header'),
+      content: shadow.getElementById('content'),
+      watch: shadow.getElementById('watch'),
+      minimise: shadow.getElementById('minimise'),
+      orb: shadow.getElementById('orb'),
+      status: shadow.getElementById('status'),
+      log: shadow.getElementById('log'),
+      copy: shadow.getElementById('copy'),
+      copyStatus: shadow.getElementById('copy-status')
+    };
+
+    wireUI();
+    return ui;
+  }
+
+  const lines = [];
+
+  function log(text, kind = 'info') {
+    lines.push(`[${new Date().toLocaleTimeString()}] [${kind.toUpperCase()}] ${text}`);
+    if (lines.length > 300) lines.shift();
+
+    if (!ui) return;
+
+    ui.log.classList.remove('empty');
+    ui.log.textContent = lines.join('\n');
+    ui.status.textContent = text;
+    console.info('[Orbs]', text);
+  }
+
+  function isVisible(element) {
+    if (!element?.isConnected) return false;
+    if (element.closest('[hidden],[aria-hidden="true"]')) return false;
+
+    for (let node = element; node instanceof Element; node = node.parentElement) {
+      const style = getComputedStyle(node);
+      if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) {
+        return false;
+      }
+    }
+
+    const rect = element.getBoundingClientRect();
+    return (
+      rect.width > 0 &&
+      rect.height > 0 &&
+      rect.bottom > 0 &&
+      rect.right > 0 &&
+      rect.top < window.innerHeight &&
+      rect.left < window.innerWidth
+    );
+  }
+
+  function findPlayerScope(video) {
+    const dialog = video.closest('[role="dialog"],dialog');
+    if (dialog) return dialog;
+
+    const player = video.closest(SELECTORS.container);
+    if (!player) return null;
+
+    let node = player;
+    for (let i = 0; i < 4 && node.parentElement && node.parentElement !== document.body; i++) {
+      node = node.parentElement;
+
+      if (node.querySelectorAll(SELECTORS.video).length > 1) break;
+
+      const text = node.textContent || '';
+      if (/\b(claim|collect|quest|orbs)\b/i.test(text)) return node;
+    }
+
+    return player;
+  }
+
+  function choosePlayer() {
+    const allVideos = Array.from(document.querySelectorAll('video'));
+
+    const eligible = allVideos.filter((video) => {
+      if (video.loop || video.error) return false;
+      if (!Number.isFinite(video.duration) || video.duration <= 0) return false;
+      if (!video.matches(`${SELECTORS.video}, ${SELECTORS.container} video, ${SELECTORS.frame} video`)) return false;
+      return isVisible(video);
+    });
+
+    const dialogVideos = eligible.filter((video) => video.closest('[role="dialog"],dialog'));
+    const candidates = dialogVideos.length ? dialogVideos : eligible;
+
+    log(
+      `Manual selection: ${allVideos.length} videos on page, ` +
+      `${candidates.length} eligible non-looping Discord players.`
+    );
+
+    if (!candidates.length) {
+      throw new Error(
+        'No loaded Orbs player found. Keep the quest video open and visible, then press “I started watching” again.'
+      );
+    }
+
+    let video = candidates[0];
+
+    if (candidates.length > 1) {
+      const choices = candidates.map((candidate, index) => {
+        const rect = candidate.getBoundingClientRect();
+        return `${index + 1}: ${Math.round(candidate.duration)} sec, ` +
+          `${Math.round(rect.width)}×${Math.round(rect.height)}`;
+      }).join('\n');
+
+      const answer = prompt(`Choose the Orbs player number:\n${choices}`);
+      if (answer === null) throw new Error('Selection cancelled.');
+
+      const index = Number(answer) - 1;
+      if (!Number.isInteger(index) || !candidates[index]) {
+        throw new Error('Invalid player number.');
+      }
+
+      video = candidates[index];
+    }
+
+    const scope = findPlayerScope(video);
+    if (!scope) throw new Error('Could not identify the player container.');
+
+    return {
+      video,
+      scope,
+      src: video.currentSrc || video.src
+    };
+  }
+
+  function captchaPresent() {
+    const frames = Array.from(document.querySelectorAll('iframe')).filter((frame) => {
+      if (!isVisible(frame) || frame.getBoundingClientRect().height <= 80) return false;
+      return /captcha|challenges\.cloudflare/i.test(`${frame.src} ${frame.title}`);
+    });
+
+    if (frames.length) return true;
+
+    return Array.from(document.querySelectorAll('[role="dialog"],[role="alert"]')).some((element) => {
+      if (!isVisible(element)) return false;
+      return /verify (?:that )?you are human|complete (?:the )?captcha|human verification/i
+        .test(element.textContent || '');
+    });
+  }
+
+  function assertStillValid(run) {
+    if (active !== run || run.cancelled) throw new Error('CANCELLED');
+    if (captchaPresent()) throw new Error('CAPTCHA');
+
+    if (
+      !run.video.isConnected ||
+      !run.scope.isConnected ||
+      (run.src && (run.video.currentSrc || run.video.src) !== run.src)
+    ) {
+      throw new Error('PLAYER_CHANGED');
+    }
+  }
+
+  function wait(ms, run) {
+    return new Promise((resolve, reject) => {
+      const deadline = Date.now() + ms;
+
+      const tick = () => {
+        try {
+          assertStillValid(run);
+
+          if (Date.now() >= deadline) {
+            assertStillValid(run);
+            resolve();
+            return;
+          }
+
+          setTimeout(tick, Math.min(200, deadline - Date.now()));
+        } catch (error) {
+          reject(error);
+        }
+      };
+
+      tick();
+    });
+  }
+
+  function claimState(run) {
+    const buttons = Array.from(run.scope.querySelectorAll('button,[role="button"]')).filter((button) => {
+      if (!isVisible(button)) return false;
+
+      const label = (button.getAttribute('aria-label') || button.textContent || '').trim();
+      return /^(claim|collect)(?:\s+(?:reward|orbs?))?(?:\s*\(?[\d,]+\)?)?$/i.test(label);
+    });
+
+    const ready = buttons.some((button) =>
+      !button.disabled &&
+      !button.hasAttribute('disabled') &&
+      button.getAttribute('aria-disabled') !== 'true' &&
+      !button.matches('[class*="disabled"],[class*="Disabled"]')
+    );
+
+    if (ready) return 'ready';
+    return buttons.length ? 'locked' : 'missing';
+  }
+
+  function errorText(run) {
+    return Array.from(run.scope.querySelectorAll('[role="alert"]'))
+      .filter(isVisible)
+      .map((element) => (element.textContent || '').trim())
+      .find((text) => /error|failed|try again|something went wrong/i.test(text)) || '';
+  }
+
+  function hideVideo(run) {
+    const video = run.video;
+
+    try {
+      video.muted = true;
+      video.volume = 0;
+
+      if (!run.mask) {
+        run.mask = true;
+        video.style.setProperty('opacity', '0', 'important');
+      }
+    } catch {
+      // Discord may replace the element during a transition.
+    }
+  }
+
+  function restoreVideo(run) {
+    run.mask = false;
+    const video = run.video;
+
+    try {
+      video.pause();
+      video.muted = run.original.muted;
+      video.volume = run.original.volume;
+      video.playbackRate = run.original.rate;
+
+      if (run.original.opacity) {
+        video.style.setProperty('opacity', run.original.opacity, run.original.priority);
+      } else {
+        video.style.removeProperty('opacity');
+      }
+    } catch {
+      // Element may already have been removed.
+    }
+  }
+
+  function cancel() {
+    const run = active;
+    if (!run) return;
+
+    active = null;
+    run.cancelled = true;
+
+    restoreVideo(run);
+
+    if (ui) {
+      ui.watch.textContent = 'I started watching';
+    }
+
+    log('Stopped. Video paused and original audio, speed and visibility restored.');
+  }
+
+  const restartTip = 'Please wait for fallback methods to unlock the “collect” button.';
+
+  async function playVideo(run, plan) {
+    assertStillValid(run);
+    hideVideo(run);
+
+    log(
+      `Attempt ${run.index + 1}/${CONFIG.plans.length}: ` +
+      `${plan.rate}x${plan.seek ? ', incremental seeks' : ''}.`
+    );
+
+    const video = run.video;
+    video.pause();
+    video.playbackRate = plan.rate;
+    video.currentTime = 0;
+
+    try {
+      await Promise.race([
+        video.play(),
+        wait(15000, run).then(() => {
+          throw new Error('Playback start timed out.');
+        })
+      ]);
+    } catch (error) {
+      if (error.name === 'NotAllowedError') {
+        throw new Error('Browser blocked playback. Press Play in Discord and start again.');
+      }
+      throw error;
+    }
+
+    assertStillValid(run);
+
+    let lastTime = video.currentTime;
+    let lastMovement = Date.now();
+    let nextSeek = Date.now() + 4000;
+    let nextProgressLog = Date.now() + 5000;
+    let lastPauseCheck = 0;
+    let rateClampReported = false;
+    const deadline = Date.now() + Math.max(120000, (video.duration + 90) * 1000);
+
+    while (!video.ended) {
+      await wait(300, run);
+      hideVideo(run);
+
+      if (video.error) {
+        throw new Error(`Media error ${video.error.code}.`);
+      }
+
+      if (Date.now() > deadline) {
+        throw new Error('Playback watchdog expired.');
+      }
+
+      if (video.currentTime > lastTime + 0.02) {
+        lastTime = video.currentTime;
+        lastMovement = Date.now();
+      }
+
+      if (Date.now() - lastMovement > CONFIG.stallMs) {
+        throw new Error('Playback stalled for 20 seconds.');
+      }
+
+      if (video.playbackRate !== plan.rate && !rateClampReported) {
+        rateClampReported = true;
+        log(
+          `Discord/browser changed requested ${plan.rate}x to ${video.playbackRate}x. ` +
+          'Not repeatedly forcing the speed.'
+        );
+      }
+
+      if (video.paused && !video.ended && Date.now() - lastPauseCheck > 4000) {
+        lastPauseCheck = Date.now();
+
+        try {
+          await Promise.race([
+            video.play(),
+            wait(10000, run).then(() => {
+              throw new Error('Resume timed out.');
+            })
+          ]);
+        } catch (error) {
+          if (error.name === 'NotAllowedError') {
+            throw new Error('Browser blocked playback. Press Play in Discord and start again.');
+          }
+          throw error;
+        }
+      }
+
+      if (
+        plan.seek &&
+        Date.now() > nextSeek &&
+        video.duration - video.currentTime > 5
+      ) {
+        video.currentTime = Math.min(
+          video.duration - 3,
+          video.currentTime + Math.min(8, video.duration / 10)
+        );
+        nextSeek = Date.now() + 4000;
+      }
+
+      if (Date.now() > nextProgressLog) {
+        nextProgressLog = Date.now() + 5000;
+        log(
+          `${Math.round((100 * video.currentTime) / video.duration)}% media position · ` +
+          `actual ${video.playbackRate}x.`
+        );
+      }
+    }
+
+    log(
+      `Video ended. Waiting up to ${CONFIG.claimWaitMs / 1000} seconds for Claim/Collect to unlock. ` +
+      restartTip
+    );
+  }
+
+  async function verifyClaim(run) {
+    const deadline = Date.now() + CONFIG.claimWaitMs;
+    let state = 'missing';
+
+    while (Date.now() < deadline) {
+      assertStillValid(run);
+      hideVideo(run);
+
+      state = claimState(run);
+      if (state === 'ready') return 'ready';
+
+      const error = errorText(run);
+      if (error) throw new Error(error.slice(0, 250));
+
+      await wait(500, run);
+    }
+
+    return state;
+  }
+
+  async function startAttempt() {
+    if (active) {
+      cancel();
+      return;
+    }
+
+    let run = null;
+
+    try {
+      log('I started watching pressed. Selecting the quest player.');
+
+      const picked = choosePlayer();
+      const video = picked.video;
+
+      run = {
+        ...picked,
+        index: 0,
+        cancelled: false,
+        mask: false,
+        original: {
+          muted: video.muted,
+          volume: video.volume,
+          rate: video.playbackRate,
+          opacity: video.style.getPropertyValue('opacity'),
+          priority: video.style.getPropertyPriority('opacity')
+        }
+      };
+
+      active = run;
+      ui.watch.textContent = 'Stop attempt';
+
+      hideVideo(run);
+
+      log('Player selected. Preparing playback attempts.');
+      assertStillValid(run);
+
+      if (claimState(run) === 'ready') {
+        log('Claim button unlocked! Click it to claim Orbs.');
+        return;
+      }
+
+      for (let index = 0; index < CONFIG.plans.length; index++) {
+        run.index = index;
+
+        try {
+          await playVideo(run, CONFIG.plans[index]);
+          const result = await verifyClaim(run);
+
+          if (result === 'ready') {
+            log('Claim button unlocked! Click it to claim Orbs.');
+            return;
+          }
+
+          if (result === 'locked') {
+            log('Claim/Collect is still disabled after playback.', 'warning');
+          } else {
+            log(
+              'No Claim/Collect button was identifiable in this player. ' +
+              'Cannot verify completion. Player restored; check Discord manually.',
+              'warning'
+            );
+            return;
+          }
+        } catch (error) {
+          if (['CANCELLED', 'CAPTCHA', 'PLAYER_CHANGED'].includes(error.message)) throw error;
+
+          if (error.name === 'NotAllowedError') {
+            throw new Error('Browser blocked playback. Press Play in Discord and start again.');
+          }
+
+          log(`Attempt failed: ${error.message}`, 'error');
+        }
+
+        if (index + 1 < CONFIG.plans.length) {
+          const next = CONFIG.plans[index + 1];
+          log(
+            `Waiting ${CONFIG.fallbackWaitMs / 1000} seconds before the next fallback: ` +
+            `${next.rate}x${next.seek ? ' with seeks' : ' without seeks'}. ${restartTip}`
+          );
+          await wait(CONFIG.fallbackWaitMs, run);
+        }
+      }
+
+      log(
+        'All attempts, including 1x, exhausted. Claim readiness was not verified. ' +
+        'Player restored; watch normally in Discord.',
+        'warning'
+      );
+    } catch (error) {
+      if (error.message === 'CAPTCHA') {
+        log(
+          'CAPTCHA — not an error. Player restored. Complete it in Discord, then press ' +
+          '“I started watching” to try again.',
+          'captcha'
+        );
+      } else if (error.message === 'PLAYER_CHANGED') {
+        log(
+          'Selected video was removed or changed. Player restored; reopen the quest and start again.',
+          'error'
+        );
+      } else if (error.message !== 'CANCELLED') {
+        log(error.message, 'error');
+      }
+    } finally {
+      if (run) {
+        run.video.removeEventListener('volumechange', run.enforceVolume);
+
+        if (active === run) {
+          restoreVideo(run);
+          active = null;
+
+          if (ui) {
+            ui.watch.textContent = 'I started watching';
+          }
+        }
+      }
+    }
+  }
+
+  let copyTimer = null;
+  let copyRequest = 0;
+
+  async function copyLogs() {
+    const request = ++copyRequest;
+    const feedback = ui.copyStatus;
+
+    clearTimeout(copyTimer);
+    feedback.textContent = '';
+
+    if (!lines.length) {
+      feedback.textContent = 'No logs yet..';
+      copyTimer = setTimeout(() => {
+        if (request === copyRequest) feedback.textContent = '';
+      }, 5000);
+      return;
+    }
+
+    const text = lines.join('\n');
+    let copied = false;
+
+    try {
+      await navigator.clipboard.writeText(text);
+      copied = true;
+    } catch {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+
+      shadow.append(textarea);
+      textarea.focus();
+      textarea.select();
+
+      try {
+        copied = document.execCommand('copy');
+      } catch {
+        copied = false;
+      }
+
+      textarea.remove();
+    }
+
+    if (request !== copyRequest) return;
+
+    feedback.textContent = copied
+      ? 'Logs Copied'
+      : 'Clipboard blocked. Expand Logs and copy the text manually.';
+
+    if (copied) {
+      copyTimer = setTimeout(() => {
+        if (request === copyRequest) feedback.textContent = '';
+      }, 5000);
+    }
+  }
+
+  let clampQueued = false;
+  let dragging = null;
+
+  function clampPanel() {
+    clampQueued = false;
+
+    if (!ui || ui.panel.hidden) return;
+
+    const viewport = window.visualViewport;
+    const left = viewport?.offsetLeft || 0;
+    const top = viewport?.offsetTop || 0;
+    const width = viewport?.width || window.innerWidth;
+    const height = viewport?.height || window.innerHeight;
+
+    ui.panel.style.maxWidth = `${Math.max(1, width - 20)}px`;
+    ui.panel.style.maxHeight = `${Math.max(1, height - 20)}px`;
+
+    const rect = ui.panel.getBoundingClientRect();
+    const nextLeft = Math.max(left + 10, Math.min(rect.left, left + width - rect.width - 10));
+    const nextTop = Math.max(top + 10, Math.min(rect.top, top + height - rect.height - 10));
+
+    ui.panel.style.left = `${nextLeft}px`;
+    ui.panel.style.top = `${nextTop}px`;
+    ui.panel.style.right = 'auto';
+    ui.panel.style.bottom = 'auto';
+  }
+
+  function queueClamp() {
+    if (clampQueued) return;
+    clampQueued = true;
+    requestAnimationFrame(clampPanel);
+  }
+
+  function wireUI() {
+    ui.watch.addEventListener('click', startAttempt);
+    ui.copy.addEventListener('click', copyLogs);
+
+    ui.minimise.addEventListener('click', () => {
+      ui.panel.hidden = true;
+      ui.orb.hidden = false;
+      ui.orb.focus();
+    });
+
+    ui.orb.addEventListener('click', () => {
+      ui.panel.hidden = false;
+      ui.orb.hidden = true;
+      queueClamp();
+      ui.watch.focus({ preventScroll: true });
+    });
+
+    ui.header.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0 || event.target.closest('button')) return;
+
+      const rect = ui.panel.getBoundingClientRect();
+      dragging = {
+        id: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        left: rect.left,
+        top: rect.top
+      };
+
+      ui.header.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    });
+
+    ui.header.addEventListener('pointermove', (event) => {
+      if (!dragging || dragging.id !== event.pointerId) return;
+
+      ui.panel.style.left = `${dragging.left + event.clientX - dragging.x}px`;
+      ui.panel.style.top = `${dragging.top + event.clientY - dragging.y}px`;
+      ui.panel.style.right = 'auto';
+      ui.panel.style.bottom = 'auto';
+
+      clampPanel();
+    });
+
+    const endDrag = (event) => {
+      if (dragging && dragging.id === event.pointerId) {
+        dragging = null;
+        queueClamp();
+      }
+    };
+
+    ui.header.addEventListener('pointerup', endDrag);
+    ui.header.addEventListener('pointercancel', endDrag);
+    ui.header.addEventListener('lostpointercapture', endDrag);
+
+    // Only react to real viewport-size changes. Do not observe Discord scroll
+    // events or continuously resize the panel, which can fight Discord's chat
+    // scroll handling and cause juddering.
+    window.addEventListener('resize', queueClamp, { passive: true });
+    window.addEventListener('orientationchange', queueClamp, { passive: true });
+    window.visualViewport?.addEventListener('resize', queueClamp, { passive: true });
+
+    queueClamp();
+  }
+
+  window.addEventListener('pagehide', () => {
+    if (active) {
+      active.cancelled = true;
+      restoreVideo(active);
+      active = null;
+    }
+  });
+
+  // Create the floating UI only after confirming this is Quest Home.
+  ensureUI();
 })();
