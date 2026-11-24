@@ -5,6 +5,7 @@
 // @description  Bypass ads for Discord Orbs with this smart helper script.
 // @author       xXSalamanderXx
 // @match        https://discord.com/*
+// @icon         https://discord.com/assets/favicon.ico
 // @grant        none
 // @run-at       document-idle
 // ==/UserScript==
