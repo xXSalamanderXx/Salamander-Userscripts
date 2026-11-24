@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YOUTUBE-Modern-Clean-Tabbed-Tube
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.13
+// @version      2.13.1
 // @description  Rounded YouTube tabs with a configurable default panel.
 // @updateURL    https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
 // @downloadURL  https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
@@ -564,7 +564,7 @@ const executionScript = (communicationKey) => {
 
       const str_tabs = [
         `<a href="#" id="tab-btn1" tyt-di="q9Kjc" tyt-tab-content="#tab-info" class="tab-btn${(hiddenTabsByUserCSS & 1) === 1 ? ' tab-btn-hidden' : ''}">${sTabBtnInfo}${str1}${str_fbtns}</a>`,
-        `<a href="#" id="tab-btn3" tyt-di="q9Kjc" tyt-tab-content="#tab-comments" class="tab-btn${(hiddenTabsByUserCSS & 2) === 2 ? ' tab-btn-hidden' : ''}">${svgElm(16, 16, 120, 120, svgComments)}<span id="tyt-cm-count"></span>${str1}${str_fbtns}</a>`,
+        `<a href="#" id="tab-btn3" tyt-di="q9Kjc" tyt-tab-content="#tab-comments" class="tab-btn${(hiddenTabsByUserCSS & 2) === 2 ? ' tab-btn-hidden' : ''}">${svgElm(16, 16, 120, 120, svgComments)}<span id="tyt-cm-count">Comments</span>${str1}${str_fbtns}</a>`,
         `<a href="#" id="tab-btn4" tyt-di="q9Kjc" tyt-tab-content="#tab-videos" class="tab-btn${(hiddenTabsByUserCSS & 4) === 4 ? ' tab-btn-hidden' : ''}">${sTabBtnVideos}${str1}${str_fbtns}</a>`,
         `<a href="#" id="tab-btn5" tyt-di="q9Kjc" tyt-tab-content="#tab-list" class="tab-btn tab-btn-hidden">${sTabBtnPlayList}${str1}${str_fbtns}</a>`
       ].join('');
@@ -3192,7 +3192,7 @@ function getLangForPage() {
 
           const cmCount = document.querySelector('#tyt-cm-count');
           if (cmCount && !document.querySelector('#tab-comments ytd-comments-header-renderer[field-of-cm-count]')) {
-            cmCount.textContent = '';
+            cmCount.textContent = 'Comments';
           }
         }
         if (hostElement.hasAttribute000('tyt-comments-header-field')) {
@@ -3264,11 +3264,12 @@ function getLangForPage() {
           const cmCount = document.querySelector('#tyt-cm-count');
           if (ez) {
             hostElement.setAttribute111('field-of-cm-count', '');
-            cmCount && (cmCount.textContent = ez.trim());
           } else {
             hostElement.removeAttribute000('field-of-cm-count');
-            cmCount && (cmCount.textContent = '');
-            console.warn('no text for #tyt-cm-count')
+          }
+          // The tab label is intentionally static: always display "Comments".
+          if (cmCount && cmCount.textContent !== 'Comments') {
+            cmCount.textContent = 'Comments';
           }
         }
       },
@@ -4463,6 +4464,13 @@ function getLangForPage() {
           cancelDefault();
           const activeLink = target;
 
+          // If the requested tab is already active, do not re-run its
+          // activation logic. This prevents redundant comments loading and
+          // bogus "Show more" state changes.
+          if (activeLink.classList.contains('active')) {
+            return;
+          }
+
           switchToTab(activeLink);
           if (['#tab-info', '#tab-comments', '#tab-videos'].includes(activeLink.getAttribute('tyt-tab-content'))) {
             flashControl(activeLink, true);
@@ -5080,9 +5088,9 @@ const styles = {
       --tabview-text-fetching: "Получение";
   }
 
+  /* The Comments tab label is static; no loading fallback is required. */
   ytd-watch-flexy #right-tabs .tab-btn span#tyt-cm-count:empty::after {
-      content: var(--tabview-text-loading);
-      letter-spacing: var(--tyt-x-loading-content-letter-spacing);
+      content: none;
   }
 
   }
@@ -5892,6 +5900,13 @@ const styles = {
   ytd-watch-flexy[tyt-tab] #right-tabs a.tab-btn[tyt-tab-content]:is([tyt-tab-content="#tab-info"], [tyt-tab-content="#tab-comments"], [tyt-tab-content="#tab-videos"]) > paper-ripple { position: absolute; inset: 0; }
 
 
+  /* Hide hashtag labels only while the description expander is open.
+     This keeps the expanded views counter from extending beneath the
+     like/dislike bar. They return automatically when it is collapsed. */
+  ytd-watch-flexy[tyt-tab][hide-default-text-inline-expander] #bottom-row #description ytd-watch-info-text[data-mctt-pill][aria-expanded="true"] a[href*="/hashtag/"] {
+    display: none !important;
+  }
+
   /* In detailed mode YouTube can render the playlist link inline in the date run. */
   #bottom-row #description ytd-watch-info-text[data-mctt-pill][aria-expanded="true"] :is(a[href], [role="link"]):not(#view-count *):not(tp-yt-paper-tooltip *) {
     padding-inline-start: 16px !important;
@@ -5957,7 +5972,7 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
     <dialog aria-labelledby="mctt-title">
       <form>
         <h2 id="mctt-title">Modern Clean Tabbed Tube</h2>
-        <p>By xXSalamanderXx · v2.13</p>
+        <p>By xXSalamanderXx · v2.13.1</p>
         <label for="mctt-choice">Default tab on new videos</label>
         <select id="mctt-choice" aria-describedby="mctt-help"></select>
         <p id="mctt-help">Choose None to start with all script tabs closed. Changes apply when you open the next video.</p>
