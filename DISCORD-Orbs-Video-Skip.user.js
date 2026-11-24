@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         DISCORD-Orbs-Video-Skip
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.3.0
+// @version      2.4.0
 // @description  Bypass ads for Discord Orbs with this smart helper script.
 // @author       xXSalamanderXx
 // @match        https://discord.com/quest-home*
@@ -24,9 +24,7 @@
     return QUEST_HOME_PATTERN.test(location.pathname + location.search);
   }
 
-  // Never run or create anything outside Quest Home.
   if (!isQuestHome()) return;
-  if (document.getElementById('orbs-simple-host')) return;
 
   const CONFIG = {
     claimWaitMs: 10000,
@@ -52,20 +50,57 @@
   let host = null;
   let shadow = null;
   let ui = null;
-  let routeWatcher = null;
-  let removed = false;
+  let routeTimer = null;
+  let cleanups = [];
+
+  function onCleanup(fn) {
+    cleanups.push(fn);
+  }
+
+  function runCleanups() {
+    const fns = cleanups;
+    cleanups = [];
+
+    for (const fn of fns) {
+      try {
+        fn();
+      } catch {
+        // Cleanup must never prevent the rest of the teardown.
+      }
+    }
+  }
+
+  function teardown() {
+    if (active) {
+      active.cancelled = true;
+      restoreVideo(active);
+      active = null;
+    }
+
+    runCleanups();
+
+    if (routeTimer) {
+      clearInterval(routeTimer);
+      routeTimer = null;
+    }
+
+    if (host) {
+      host.remove();
+    }
+
+    host = null;
+    shadow = null;
+    ui = null;
+  }
 
   function ensureUI() {
-    if (removed) return null;
-
     if (host && host.isConnected) return ui;
 
     host = document.createElement('div');
     host.id = 'orbs-simple-host';
 
-    // Keep the injection host completely outside Discord's layout and pointer
-    // hit-testing. A zero-size, fixed, non-interactive host avoids changing
-    // body layout or interfering with Discord's custom scroll containers.
+    // The host must not participate in Discord's document flow or intercept
+    // pointer/wheel events. It is only a mounting point for the shadow UI.
     host.style.cssText = [
       'position:fixed',
       'top:0',
@@ -75,12 +110,14 @@
       'margin:0',
       'padding:0',
       'border:0',
+      'background:transparent',
       'overflow:visible',
       'pointer-events:none',
-      'z-index:2147483647',
-      'contain:layout style size',
-      'isolation:isolate'
+      'z-index:2147483647'
     ].join(';');
+
+    host.setAttribute('aria-hidden', 'true');
+    host.setAttribute('role', 'presentation');
 
     document.body.append(host);
     shadow = host.attachShadow({ mode: 'open' });
@@ -252,43 +289,6 @@
 
     wireUI();
     return ui;
-  }
-
-  function removeUI() {
-    if (removed) return;
-    removed = true;
-
-    if (routeWatcher) {
-      clearInterval(routeWatcher);
-      routeWatcher = null;
-    }
-
-    if (active) {
-      active.cancelled = true;
-      restoreVideo(active);
-      active = null;
-    }
-
-    if (host) {
-      host.remove();
-    }
-
-    host = null;
-    shadow = null;
-    ui = null;
-  }
-
-  function startRouteWatcher() {
-    if (routeWatcher) return;
-
-    // Discord is a SPA, so the userscript must remove its UI as soon as the
-    // user navigates away from Quest Home. A lightweight route check avoids
-    // observing every Discord DOM mutation.
-    routeWatcher = setInterval(() => {
-      if (!isQuestHome()) {
-        removeUI();
-      }
-    }, 500);
   }
 
   const lines = [];
@@ -880,15 +880,24 @@
   }
 
   function wireUI() {
+    const removeResizeListener = () => {
+      window.removeEventListener('resize', queueClamp);
+      window.removeEventListener('orientationchange', queueClamp);
+    };
+
+    onCleanup(removeResizeListener);
+
     ui.watch.addEventListener('click', startAttempt);
     ui.copy.addEventListener('click', copyLogs);
 
+    // Exact original minimise behaviour: hide the full panel and reveal the orb.
     ui.minimise.addEventListener('click', () => {
       ui.panel.hidden = true;
       ui.orb.hidden = false;
       ui.orb.focus();
     });
 
+    // Exact original restore behaviour: hide the orb and reopen the panel.
     ui.orb.addEventListener('click', () => {
       ui.panel.hidden = false;
       ui.orb.hidden = true;
@@ -934,11 +943,73 @@
     ui.header.addEventListener('pointercancel', endDrag);
     ui.header.addEventListener('lostpointercapture', endDrag);
 
-    // No scroll listeners. Only actual viewport-size changes trigger clamping.
+    // React only to actual viewport-size changes. Never listen to scroll
+    // events, which can interfere with Discord's chat scrolling.
     window.addEventListener('resize', queueClamp, { passive: true });
     window.addEventListener('orientationchange', queueClamp, { passive: true });
 
     queueClamp();
+  }
+
+  function handleRouteChange() {
+    if (isQuestHome()) {
+      if (!host || !host.isConnected) {
+        ensureUI();
+      }
+      return;
+    }
+
+    // Discord changes the URL during SPA navigation without a full reload.
+    // Remove every trace of the helper immediately, including the orb.
+    teardown();
+  }
+
+  function installRouteWatcher() {
+    // Primary SPA-navigation signal.
+    if (window.navigation?.addEventListener) {
+      window.navigation.addEventListener('currententrychange', handleRouteChange);
+      onCleanup(() => {
+        window.navigation.removeEventListener('currententrychange', handleRouteChange);
+      });
+    }
+
+    // Compatibility signals for Discord's history-based routing.
+    window.addEventListener('popstate', handleRouteChange);
+    window.addEventListener('hashchange', handleRouteChange);
+
+    onCleanup(() => {
+      window.removeEventListener('popstate', handleRouteChange);
+      window.removeEventListener('hashchange', handleRouteChange);
+    });
+
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+
+    history.pushState = function patchedPushState(...args) {
+      const result = originalPushState.apply(this, args);
+      queueMicrotask(handleRouteChange);
+      return result;
+    };
+
+    history.replaceState = function patchedReplaceState(...args) {
+      const result = originalReplaceState.apply(this, args);
+      queueMicrotask(handleRouteChange);
+      return result;
+    };
+
+    onCleanup(() => {
+      history.pushState = originalPushState;
+      history.replaceState = originalReplaceState;
+    });
+
+    // Safety net for Discord routing methods that do not use History API.
+    routeTimer = setInterval(handleRouteChange, 500);
+    onCleanup(() => {
+      if (routeTimer) {
+        clearInterval(routeTimer);
+        routeTimer = null;
+      }
+    });
   }
 
   window.addEventListener('pagehide', () => {
@@ -949,8 +1020,8 @@
     }
   });
 
-  // Create the floating UI only after confirming this is Quest Home, then
-  // remove it completely—including the orb—when the user leaves the page.
+  // Initial mount. The route watcher then keeps the helper visible only while
+  // the URL remains on Quest Home.
   ensureUI();
-  startRouteWatcher();
+  installRouteWatcher();
 })();
