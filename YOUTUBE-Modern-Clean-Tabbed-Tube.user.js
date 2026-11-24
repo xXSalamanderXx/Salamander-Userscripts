@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YOUTUBE-Modern-Clean-Tabbed-Tube
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.15
+// @version      2.16
 // @description  Rounded YouTube tabs with a configurable default panel.
 // @updateURL    https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
 // @downloadURL  https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
@@ -868,34 +868,16 @@ function getLangForPage() {
     });
 
 
+  /* Move the clickable views/info pill down slightly. */
+  ytd-watch-flexy[tyt-tab][hide-default-text-inline-expander] #bottom-row #description ytd-watch-info-text[data-mctt-pill] {
+    margin-block-start: 0.55mm;
+  }
+
   const pillSelector = 'ytd-watch-flexy[tyt-tab][hide-default-text-inline-expander] ytd-watch-metadata #bottom-row #description ytd-watch-info-text:not([hidden])';
-  const expandedPillExtraPattern = /(?:\u272A|members\s+first(?:\s+on)?|\b\d+\s+products?\b)/i;
-  const updateExpandedPillExtras = () => {
-    for (const pill of document.querySelectorAll('ytd-watch-info-text[data-mctt-pill]')) {
-      const expanded = pill.getAttribute('aria-expanded') === 'true';
-      for (const item of pill.children) {
-        const text = (item.textContent || '').trim();
-        const isHashtag = item.matches('a[href*="/hashtag/"]');
-        const isExtra = expanded && (isHashtag || (text && expandedPillExtraPattern.test(text)));
-        item.classList.toggle('mctt-pill-extra-hidden', Boolean(isExtra));
-      }
-    }
-  };
-  let pillExtrasFrame = 0;
-  const scheduleExpandedPillExtras = () => {
-    if (pillExtrasFrame) return;
-    pillExtrasFrame = requestAnimationFrame(() => {
-      pillExtrasFrame = 0;
-      updateExpandedPillExtras();
-    });
-  };
-  const pillExtrasObserver = new MutationObserver(scheduleExpandedPillExtras);
   const setPillExpanded = (pill, expanded) => {
     pill.setAttribute('aria-expanded', String(expanded));
     if (typeof pill.detailed === 'boolean') pill.detailed = expanded;
     pill.toggleAttribute('detailed', expanded);
-    pillExtrasObserver.observe(pill, { childList: true, subtree: true, characterData: true });
-    scheduleExpandedPillExtras();
   };
   let pillVideo;
   const preparePills = () => {
@@ -909,7 +891,6 @@ function getLangForPage() {
       pill.removeAttribute('tabindex');
       setPillExpanded(pill, false);
     }
-    scheduleExpandedPillExtras();
   };
   let pillFrame = 0;
   const schedulePills = () => {
@@ -4442,6 +4423,14 @@ function getLangForPage() {
       'updateOnVideoIdChanged': (lockId) => {
         if (lockId !== lockGet['updateOnVideoIdChangedLock']) return;
         applyForkDefault();
+
+        // Reset the watch-page columns scroll position when navigating to
+        // another video, so the page does not remain scrolled down.
+        const columns = document.querySelector('#columns');
+        if (columns && columns.scrollTop) {
+          columns.scrollTop = 0;
+        }
+
         const videoId = tmpLastVideoId;
         if (!videoId) return;
         
@@ -5924,13 +5913,6 @@ const styles = {
   ytd-watch-flexy[tyt-tab] #right-tabs a.tab-btn[tyt-tab-content]:is([tyt-tab-content="#tab-info"], [tyt-tab-content="#tab-comments"], [tyt-tab-content="#tab-videos"]) > paper-ripple { position: absolute; inset: 0; }
 
 
-  /* While the views/info pill is expanded, hide hashtags and membership /
-     product metadata so the expanded row does not extend beneath the
-     like/dislike bar. Items return when the pill is collapsed. */
-  ytd-watch-flexy[tyt-tab][hide-default-text-inline-expander] #bottom-row #description ytd-watch-info-text[data-mctt-pill][aria-expanded="true"] .mctt-pill-extra-hidden {
-    display: none !important;
-  }
-
   /* In detailed mode YouTube can render the playlist link inline in the date run. */
   #bottom-row #description ytd-watch-info-text[data-mctt-pill][aria-expanded="true"] :is(a[href], [role="link"]):not(#view-count *):not(tp-yt-paper-tooltip *) {
     padding-inline-start: 16px !important;
@@ -6005,7 +5987,7 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
     <dialog aria-labelledby="mctt-title">
       <form>
         <h2 id="mctt-title">Modern Clean Tabbed Tube</h2>
-        <p>By xXSalamanderXx · v2.15</p>
+        <p>By xXSalamanderXx · v2.16</p>
         <label for="mctt-choice">Default tab on new videos</label>
         <select id="mctt-choice" aria-describedby="mctt-help"></select>
         <p id="mctt-help">Choose 'None' to start with all tabs closed. Changes take effect on next page load.</p>
