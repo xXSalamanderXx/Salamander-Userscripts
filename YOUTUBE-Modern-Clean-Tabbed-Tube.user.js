@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YOUTUBE-Modern-Clean-Tabbed-Tube
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.16
+// @version      2.17
 // @description  Rounded YouTube tabs with a configurable default panel.
 // @updateURL    https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
 // @downloadURL  https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
@@ -867,11 +867,6 @@ function getLangForPage() {
       // console.log('resize')
     });
 
-
-  /* Move the clickable views/info pill down slightly. */
-  ytd-watch-flexy[tyt-tab][hide-default-text-inline-expander] #bottom-row #description ytd-watch-info-text[data-mctt-pill] {
-    margin-block-start: 0.55mm;
-  }
 
   const pillSelector = 'ytd-watch-flexy[tyt-tab][hide-default-text-inline-expander] ytd-watch-metadata #bottom-row #description ytd-watch-info-text:not([hidden])';
   const setPillExpanded = (pill, expanded) => {
@@ -5913,6 +5908,11 @@ const styles = {
   ytd-watch-flexy[tyt-tab] #right-tabs a.tab-btn[tyt-tab-content]:is([tyt-tab-content="#tab-info"], [tyt-tab-content="#tab-comments"], [tyt-tab-content="#tab-videos"]) > paper-ripple { position: absolute; inset: 0; }
 
 
+  /* Move the clickable views/info pill down slightly. */
+  ytd-watch-flexy[tyt-tab][hide-default-text-inline-expander] #bottom-row #description ytd-watch-info-text[data-mctt-pill] {
+    margin-block-start: 0.55mm;
+  }
+
   /* In detailed mode YouTube can render the playlist link inline in the date run. */
   #bottom-row #description ytd-watch-info-text[data-mctt-pill][aria-expanded="true"] :is(a[href], [role="link"]):not(#view-count *):not(tp-yt-paper-tooltip *) {
     padding-inline-start: 16px !important;
@@ -5987,7 +5987,7 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
     <dialog aria-labelledby="mctt-title">
       <form>
         <h2 id="mctt-title">Modern Clean Tabbed Tube</h2>
-        <p>By xXSalamanderXx · v2.16</p>
+        <p>By xXSalamanderXx · v2.17</p>
         <label for="mctt-choice">Default tab on new videos</label>
         <select id="mctt-choice" aria-describedby="mctt-help"></select>
         <p id="mctt-help">Choose 'None' to start with all tabs closed. Changes take effect on next page load.</p>
