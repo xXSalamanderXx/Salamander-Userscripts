@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YOUTUBE-Modern-Clean-Tabbed-Tube
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.17
+// @version      2.18
 // @description  Rounded YouTube tabs with a configurable default panel.
 // @updateURL    https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
 // @downloadURL  https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
@@ -4476,6 +4476,15 @@ function getLangForPage() {
           // activation logic. This prevents redundant comments loading and
           // bogus "Show more" state changes.
           if (activeLink.classList.contains('active')) {
+            // When an AI/engagement panel is open, allow the active tab
+            // button to collapse its column. This restores vertical space
+            // for the AI panel instead of leaving it squashed.
+            const expandedPanel = document.querySelector(
+              'ytd-watch-flexy[tyt-tab] ytd-engagement-panel-section-list-renderer[visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"]'
+            );
+            if (expandedPanel) {
+              switchToTab(null);
+            }
             return;
           }
 
@@ -5908,7 +5917,11 @@ const styles = {
   ytd-watch-flexy[tyt-tab] #right-tabs a.tab-btn[tyt-tab-content]:is([tyt-tab-content="#tab-info"], [tyt-tab-content="#tab-comments"], [tyt-tab-content="#tab-videos"]) > paper-ripple { position: absolute; inset: 0; }
 
 
-  /* Move the clickable views/info pill down slightly. */
+  /* Move the clickable views/info pill down slightly and reserve matching
+     space below the description so the offset is actually visible. */
+  ytd-watch-flexy[tyt-tab][hide-default-text-inline-expander] #bottom-row #description {
+    padding-block-end: 0.55mm;
+  }
   ytd-watch-flexy[tyt-tab][hide-default-text-inline-expander] #bottom-row #description ytd-watch-info-text[data-mctt-pill] {
     margin-block-start: 0.55mm;
   }
@@ -5987,7 +6000,7 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
     <dialog aria-labelledby="mctt-title">
       <form>
         <h2 id="mctt-title">Modern Clean Tabbed Tube</h2>
-        <p>By xXSalamanderXx · v2.17</p>
+        <p>By xXSalamanderXx · v2.18</p>
         <label for="mctt-choice">Default tab on new videos</label>
         <select id="mctt-choice" aria-describedby="mctt-help"></select>
         <p id="mctt-help">Choose 'None' to start with all tabs closed. Changes take effect on next page load.</p>
