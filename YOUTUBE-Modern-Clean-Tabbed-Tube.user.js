@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YOUTUBE-Modern-Clean-Tabbed-Tube
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.13.1
+// @version      2.15
 // @description  Rounded YouTube tabs with a configurable default panel.
 // @updateURL    https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
 // @downloadURL  https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
@@ -869,10 +869,33 @@ function getLangForPage() {
 
 
   const pillSelector = 'ytd-watch-flexy[tyt-tab][hide-default-text-inline-expander] ytd-watch-metadata #bottom-row #description ytd-watch-info-text:not([hidden])';
+  const expandedPillExtraPattern = /(?:\u272A|members\s+first(?:\s+on)?|\b\d+\s+products?\b)/i;
+  const updateExpandedPillExtras = () => {
+    for (const pill of document.querySelectorAll('ytd-watch-info-text[data-mctt-pill]')) {
+      const expanded = pill.getAttribute('aria-expanded') === 'true';
+      for (const item of pill.children) {
+        const text = (item.textContent || '').trim();
+        const isHashtag = item.matches('a[href*="/hashtag/"]');
+        const isExtra = expanded && (isHashtag || (text && expandedPillExtraPattern.test(text)));
+        item.classList.toggle('mctt-pill-extra-hidden', Boolean(isExtra));
+      }
+    }
+  };
+  let pillExtrasFrame = 0;
+  const scheduleExpandedPillExtras = () => {
+    if (pillExtrasFrame) return;
+    pillExtrasFrame = requestAnimationFrame(() => {
+      pillExtrasFrame = 0;
+      updateExpandedPillExtras();
+    });
+  };
+  const pillExtrasObserver = new MutationObserver(scheduleExpandedPillExtras);
   const setPillExpanded = (pill, expanded) => {
     pill.setAttribute('aria-expanded', String(expanded));
     if (typeof pill.detailed === 'boolean') pill.detailed = expanded;
     pill.toggleAttribute('detailed', expanded);
+    pillExtrasObserver.observe(pill, { childList: true, subtree: true, characterData: true });
+    scheduleExpandedPillExtras();
   };
   let pillVideo;
   const preparePills = () => {
@@ -886,6 +909,7 @@ function getLangForPage() {
       pill.removeAttribute('tabindex');
       setPillExpanded(pill, false);
     }
+    scheduleExpandedPillExtras();
   };
   let pillFrame = 0;
   const schedulePills = () => {
@@ -5900,10 +5924,10 @@ const styles = {
   ytd-watch-flexy[tyt-tab] #right-tabs a.tab-btn[tyt-tab-content]:is([tyt-tab-content="#tab-info"], [tyt-tab-content="#tab-comments"], [tyt-tab-content="#tab-videos"]) > paper-ripple { position: absolute; inset: 0; }
 
 
-  /* Hide hashtag labels only while the description expander is open.
-     This keeps the expanded views counter from extending beneath the
-     like/dislike bar. They return automatically when it is collapsed. */
-  ytd-watch-flexy[tyt-tab][hide-default-text-inline-expander] #bottom-row #description ytd-watch-info-text[data-mctt-pill][aria-expanded="true"] a[href*="/hashtag/"] {
+  /* While the views/info pill is expanded, hide hashtags and membership /
+     product metadata so the expanded row does not extend beneath the
+     like/dislike bar. Items return when the pill is collapsed. */
+  ytd-watch-flexy[tyt-tab][hide-default-text-inline-expander] #bottom-row #description ytd-watch-info-text[data-mctt-pill][aria-expanded="true"] .mctt-pill-extra-hidden {
     display: none !important;
   }
 
@@ -5964,6 +5988,15 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
       label { display:block; font-weight:600; margin-bottom:6px; }
       select,button { font:inherit; color:inherit; border:1px solid var(--edge); background:var(--control); border-radius:999px; padding:9px 14px; }
       select { width:100%; }
+      .support { margin: 18px 0 16px; padding: 14px; border: 1px solid var(--edge); border-radius: 16px; background: color-mix(in srgb, var(--control) 55%, transparent); }
+      .support-title { display:flex; align-items:center; gap:8px; font-weight:700; margin-bottom:10px; }
+      .heart { width:16px; height:16px; fill:#ff4d6d; flex:0 0 auto; }
+      .support-links { display:flex; flex-direction:column; gap:8px; }
+      .support-link { display:flex; align-items:center; gap:9px; color:inherit; text-decoration:none; font-weight:600; padding:9px 12px; border:1px solid var(--edge); border-radius:999px; background:var(--control); transition: background-color .15s ease, border-color .15s ease; }
+      .support-link:hover { border-color: #3ea6ff; background: color-mix(in srgb, #3ea6ff 12%, var(--control)); }
+      .support-link svg { width:17px; height:17px; flex:0 0 auto; }
+      .bmc { fill:#ffdd00; }
+      .github { fill:currentColor; }
       footer { display:flex; justify-content:flex-end; gap:8px; }
       button { cursor:pointer; }
       button[type="submit"] { background:var(--text); color:var(--surface); font-weight:700; }
@@ -5972,10 +6005,26 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
     <dialog aria-labelledby="mctt-title">
       <form>
         <h2 id="mctt-title">Modern Clean Tabbed Tube</h2>
-        <p>By xXSalamanderXx · v2.13.1</p>
+        <p>By xXSalamanderXx · v2.15</p>
         <label for="mctt-choice">Default tab on new videos</label>
         <select id="mctt-choice" aria-describedby="mctt-help"></select>
-        <p id="mctt-help">Choose None to start with all script tabs closed. Changes apply when you open the next video.</p>
+        <p id="mctt-help">Choose 'None' to start with all tabs closed. Changes take effect on next page load.</p>
+        <section class="support">
+          <div class="support-title">
+            <svg class="heart" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.7-9.7-9A5.6 5.6 0 0 1 12 5.6 5.6 5.6 0 0 1 21.7 12c-2.2 4.3-9.7 9-9.7 9z"/></svg>
+            <span>Support Continued Development</span>
+          </div>
+          <div class="support-links">
+            <a class="support-link" href="https://buymeacoffee.com/SinZZzz" target="_blank" rel="noopener noreferrer">
+              <svg class="bmc" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h13v2.2c1.7.3 3 1.7 3 3.4 0 2-1.6 3.6-3.6 3.6h-.5A5.5 5.5 0 0 1 10.5 20H7a3 3 0 0 1-3-3V7zm13 4.3v3.8h.4c1.1 0 2-.9 2-1.9s-.9-1.9-2-1.9h-.4zM6 9v8a1 1 0 0 0 1 1h3.5c1.7 0 3.1-1.2 3.4-2.8.1-.4.1-.8.1-1.2V9H6z"/></svg>
+              <span>Support xXSalamanderXx</span>
+            </a>
+            <a class="support-link" href="https://github.com/xXSalamanderXx/Salamander-Userscripts" target="_blank" rel="noopener noreferrer">
+              <svg class="github" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.5 7.5 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A7.995 7.995 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+              <span>Checkout My Whole Userscript Collection</span>
+            </a>
+          </div>
+        </section>
         <footer><button type="button">Cancel</button><button type="submit">Save</button></footer>
       </form>
     </dialog>`;
