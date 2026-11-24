@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         DISCORD-Orbs-Video-Skip
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.1.7
+// @version      2.1.8
 // @description  One-button quest playback with progressively slower retries and claim-readiness checks.
 // @author       xXSalamanderXx
 // @match        https://discord.com/*
@@ -37,7 +37,7 @@ function errorText(r){return [...r.scope.querySelectorAll('[role="alert"]')].fil
 function suppress(r){const v=r.video;v.muted=true;v.volume=0;v.style.setProperty('opacity','0','important');r.mask=true;}
 function restore(r){r.mask=false;const v=r.video;try{v.pause();v.muted=r.original.muted;v.volume=r.original.volume;v.playbackRate=r.original.rate;if(r.original.opacity)v.style.setProperty('opacity',r.original.opacity,r.original.priority);else v.style.removeProperty('opacity');}catch{}}
 function cancel(){const r=active;if(!r)return;active=null;r.cancelled=true;restore(r);$('watch').textContent='I started watching';log('Stopped. Video paused and original audio, speed and visibility restored.');}
-const restartTip='You can press Stop attempt and try restarting the video in Discord.';
+const restartTip='Please wait for fallback methods to unlock the "collect" button.';
 async function play(r,plan){
  check(r);suppress(r);log(`Attempt ${r.index+1}/${CONFIG.plans.length}: ${plan.rate}x${plan.seek?', incremental seeks':''}.`);
  const v=r.video;v.pause();v.playbackRate=plan.rate;v.currentTime=0;
