@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         DISCORD-Orbs-Video-Skip
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.2.0
-// @description  Manual quest-video playback helper for Discord Quest Home only, with progressively slower fallbacks and claim-readiness checks.
+// @version      2.3.0
+// @description  Bypass ads for Discord Orbs with this smart helper script.
 // @author       xXSalamanderXx
 // @match        https://discord.com/quest-home*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=discord.com
@@ -16,9 +16,16 @@
 (() => {
   'use strict';
 
-  // Hard scope guard: never create UI or observe Discord outside Quest Home.
   if (window.top !== window.self) return;
-  if (!/^\/quest-home(?:\/|$|\?|#)/.test(location.pathname + location.search)) return;
+
+  const QUEST_HOME_PATTERN = /^\/quest-home(?:\/|$|\?|#)/;
+
+  function isQuestHome() {
+    return QUEST_HOME_PATTERN.test(location.pathname + location.search);
+  }
+
+  // Never run or create anything outside Quest Home.
+  if (!isQuestHome()) return;
   if (document.getElementById('orbs-simple-host')) return;
 
   const CONFIG = {
@@ -45,15 +52,39 @@
   let host = null;
   let shadow = null;
   let ui = null;
+  let routeWatcher = null;
+  let removed = false;
 
   function ensureUI() {
+    if (removed) return null;
+
     if (host && host.isConnected) return ui;
 
     host = document.createElement('div');
     host.id = 'orbs-simple-host';
-    document.body.append(host);
 
+    // Keep the injection host completely outside Discord's layout and pointer
+    // hit-testing. A zero-size, fixed, non-interactive host avoids changing
+    // body layout or interfering with Discord's custom scroll containers.
+    host.style.cssText = [
+      'position:fixed',
+      'top:0',
+      'left:0',
+      'width:0',
+      'height:0',
+      'margin:0',
+      'padding:0',
+      'border:0',
+      'overflow:visible',
+      'pointer-events:none',
+      'z-index:2147483647',
+      'contain:layout style size',
+      'isolation:isolate'
+    ].join(';');
+
+    document.body.append(host);
     shadow = host.attachShadow({ mode: 'open' });
+
     shadow.innerHTML = `
       <style>
         :host {
@@ -80,6 +111,7 @@
           overflow: hidden;
           display: flex;
           flex-direction: column;
+          pointer-events: auto;
         }
 
         #header {
@@ -163,6 +195,7 @@
           border: 1px solid #ddaaffaa;
           background: radial-gradient(circle at 33% 25%, #efd2ff, #ba7aff 18%, #7d40cf 48%, #302268 85%);
           box-shadow: 0 0 22px #a459ff70;
+          pointer-events: auto;
         }
 
         #copy {
@@ -208,7 +241,6 @@
     ui = {
       panel: shadow.getElementById('panel'),
       header: shadow.getElementById('header'),
-      content: shadow.getElementById('content'),
       watch: shadow.getElementById('watch'),
       minimise: shadow.getElementById('minimise'),
       orb: shadow.getElementById('orb'),
@@ -220,6 +252,43 @@
 
     wireUI();
     return ui;
+  }
+
+  function removeUI() {
+    if (removed) return;
+    removed = true;
+
+    if (routeWatcher) {
+      clearInterval(routeWatcher);
+      routeWatcher = null;
+    }
+
+    if (active) {
+      active.cancelled = true;
+      restoreVideo(active);
+      active = null;
+    }
+
+    if (host) {
+      host.remove();
+    }
+
+    host = null;
+    shadow = null;
+    ui = null;
+  }
+
+  function startRouteWatcher() {
+    if (routeWatcher) return;
+
+    // Discord is a SPA, so the userscript must remove its UI as soon as the
+    // user navigates away from Quest Home. A lightweight route check avoids
+    // observing every Discord DOM mutation.
+    routeWatcher = setInterval(() => {
+      if (!isQuestHome()) {
+        removeUI();
+      }
+    }, 500);
   }
 
   const lines = [];
@@ -349,6 +418,7 @@
 
   function assertStillValid(run) {
     if (active !== run || run.cancelled) throw new Error('CANCELLED');
+    if (!isQuestHome()) throw new Error('LEFT_QUEST_HOME');
     if (captchaPresent()) throw new Error('CAPTCHA');
 
     if (
@@ -660,7 +730,11 @@
             return;
           }
         } catch (error) {
-          if (['CANCELLED', 'CAPTCHA', 'PLAYER_CHANGED'].includes(error.message)) throw error;
+          if (
+            ['CANCELLED', 'CAPTCHA', 'PLAYER_CHANGED', 'LEFT_QUEST_HOME'].includes(error.message)
+          ) {
+            throw error;
+          }
 
           if (error.name === 'NotAllowedError') {
             throw new Error('Browser blocked playback. Press Play in Discord and start again.');
@@ -696,6 +770,8 @@
           'Selected video was removed or changed. Player restored; reopen the quest and start again.',
           'error'
         );
+      } else if (error.message === 'LEFT_QUEST_HOME') {
+        log('Left Quest Home. Player restored and helper removed.', 'info');
       } else if (error.message !== 'CANCELLED') {
         log(error.message, 'error');
       }
@@ -858,12 +934,9 @@
     ui.header.addEventListener('pointercancel', endDrag);
     ui.header.addEventListener('lostpointercapture', endDrag);
 
-    // Only react to real viewport-size changes. Do not observe Discord scroll
-    // events or continuously resize the panel, which can fight Discord's chat
-    // scroll handling and cause juddering.
+    // No scroll listeners. Only actual viewport-size changes trigger clamping.
     window.addEventListener('resize', queueClamp, { passive: true });
     window.addEventListener('orientationchange', queueClamp, { passive: true });
-    window.visualViewport?.addEventListener('resize', queueClamp, { passive: true });
 
     queueClamp();
   }
@@ -876,6 +949,8 @@
     }
   });
 
-  // Create the floating UI only after confirming this is Quest Home.
+  // Create the floating UI only after confirming this is Quest Home, then
+  // remove it completely—including the orb—when the user leaves the page.
   ensureUI();
+  startRouteWatcher();
 })();
