@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         DISCORD-Orbs-Video-Skip
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      3.0.1
+// @version      3.0.2
 // @description  Bypass ads for Discord Orbs with this smart helper script.
 // @author       xXSalamanderXx
 // @match        https://discord.com/*
@@ -10,13 +10,15 @@
 // ==/UserScript==
 /* Manual start only. No API calls, automatic claims, or CAPTCHA solving.
  * No route polling, chat style changes, scroll writes, or automatic focus.
+ * v3.0.2: removed Popover/top-layer usage and made route-change handling
+ * asynchronous so it cannot interfere with Discord chat scroll handling.
  */
 (() => {
 'use strict';
 if (self !== top) return;
-const KEY = Symbol.for('orbs.helper.lifecycle.v301');
+const KEY = Symbol.for('orbs.helper.lifecycle.v302');
 if (window[KEY]) return;
-const state = {session:null, suspended:false};
+const state = {session:null, suspended:false, pending:false};
 window[KEY] = state;
 const quest = () => /^\/quest-home\/?$/.test(location.pathname);
 const FEED = '[data-jump-section="global"]';
@@ -30,7 +32,6 @@ function detach() {
   state.session = null;
   x.controller.abort();
   x.run?.abort();
-  try {x.host.hidePopover();} catch {}
   x.host.remove();
 }
 function visible(e) {
@@ -42,12 +43,11 @@ function mount() {
   if (state.session || !quest() || state.suspended || !document.body) return;
   const host = document.createElement('div');
   host.id = 'orbs-simple-host';
-  const hasPopover = typeof host.showPopover === 'function';
-  if (hasPopover) host.setAttribute('popover','manual');
-  host.style.cssText = 'all:initial!important;position:fixed!important;inset:auto 18px 18px auto!important;margin:0!important;padding:0!important;border:0!important;width:max-content!important;height:max-content!important;max-width:calc(100vw - 36px)!important;background:transparent!important;overflow:visible!important;z-index:2147483647!important;pointer-events:auto!important;';
+  // Plain fixed element: never uses the Popover API or the top layer, which
+  // can interfere with Discord's virtualised chat scrolling/focus handling.
+  host.style.cssText = 'all:initial!important;position:fixed!important;inset:auto 18px 18px auto!important;margin:0!important;padding:0!important;border:0!important;width:max-content!important;height:max-content!important;max-width:calc(100vw - 36px)!important;background:transparent!important;overflow:visible!important;z-index:2147483647!important;pointer-events:auto!important;contain:layout style!important;';
   const root = host.attachShadow({mode:'closed'});
   root.innerHTML = `<style>
-  :host::backdrop{display:none!important;pointer-events:none!important}
   *{box-sizing:border-box}[hidden]{display:none!important}
   section{width:330px;max-width:calc(100vw - 36px);max-height:calc(100dvh - 36px);overflow:auto;color:#dbdee1;font:13px/1.5 system-ui;background:linear-gradient(145deg,#272232,#191a22);border:1px solid #a978ee55;border-radius:16px;box-shadow:0 16px 50px #0009;padding:14px}
   header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}h2{margin:0;font-size:14px;color:white}
@@ -82,7 +82,10 @@ function mount() {
     if(!valid()) return;
     if(x.run){x.run.abort();return;}
     // Exclude chat-fed players before any visibility reads or media mutations.
-    const players=[...document.querySelectorAll(VIDEO)].filter(v=>!v.closest(FEED) && !v.loop && !v.error && Number.isFinite(v.duration) && v.duration>0 && visible(v));
+    const players=[];
+    for(const v of document.querySelectorAll(VIDEO)){
+      if(!v.closest(FEED) && !v.loop && !v.error && Number.isFinite(v.duration) && v.duration>0 && visible(v)) players.push(v);
+    }
     if(players.length!==1){log(`Found ${players.length} loaded non-chat players; keep exactly one quest video open.`);return;}
     const video=players[0];
     const container=video.closest(PLAYER);
@@ -106,11 +109,12 @@ function mount() {
     function captcha(){
       if(performance.now()-captchaAt<1200)return captchaCached;
       captchaAt=performance.now();
-      captchaCached=[...scope.querySelectorAll('iframe,[role="alert"]')].some(e=>{
-        if(e.closest(FEED))return false;
+      captchaCached=false;
+      for(const e of scope.querySelectorAll('iframe,[role="alert"]')){
+        if(e.closest(FEED))continue;
         const match=e.tagName==='IFRAME' ? /captcha|challenges\.cloudflare/i.test(e.getAttribute('src')+' '+e.title) : /verify (?:that )?you are human|captcha|human verification/i.test(e.textContent||'');
-        return match && visible(e);
-      });
+        if(match && visible(e)){captchaCached=true;break;}
+      }
       return captchaCached;
     }
     function guard(){check();if(captcha())throw Error('Human verification detected. Complete it manually in Discord.');}
@@ -134,9 +138,16 @@ function mount() {
       guard();
     }
     function claim(){
-      const buttons=[...scope.querySelectorAll('button,[role="button"]')].filter(b=>!b.closest(FEED) && /^(claim|collect)(?:\s+(?:reward|orbs?))?(?:\s*\(?[\d,]+\)?)?$/i.test((b.getAttribute('aria-label')||b.textContent||'').trim()) && visible(b));
+      const buttons=[];
+      for(const b of scope.querySelectorAll('button,[role="button"]')){
+        if(b.closest(FEED))continue;
+        if(/^(claim|collect)(?:\s+(?:reward|orbs?))?(?:\s*\(?[\d,]+\)?)?$/i.test((b.getAttribute('aria-label')||b.textContent||'').trim()) && visible(b)) buttons.push(b);
+      }
       if(!buttons.length)return 'missing';
-      return buttons.some(b=>!b.disabled && !b.hasAttribute('disabled') && b.getAttribute('aria-disabled')!=='true')?'ready':'locked';
+      for(const b of buttons){
+        if(!b.disabled && !b.hasAttribute('disabled') && b.getAttribute('aria-disabled')!=='true') return 'ready';
+      }
+      return 'locked';
     }
     $('watch').textContent='Stop attempt';
     try{
@@ -168,38 +179,51 @@ function mount() {
   });
   // The only added node is outside #app-mount, never in a Discord scroller.
   document.body.append(host);toggle(minimized);
-  if(hasPopover){try{host.showPopover();}catch{host.removeAttribute('popover');}}
 }
 function reconcile(){
   if(state.suspended || !quest()){detach();return;}
   if(state.session && !state.session.host.isConnected)detach();
   if(!state.session){try{mount();}catch(e){detach();console.warn('[Orbs] Mount failed:',e);}}
 }
-// Hooks are installed once for the document lifetime, not per UI mount.
-// Preserve receiver, return value and native exceptions; never rewrite URLs.
-const wrappers=[];
-for(const name of ['pushState','replaceState']){
-  const previous=history[name];
-  function wrapped(...args){
-    const result=Reflect.apply(previous,this,args);
-    reconcile();
-    return result;
-  }
-  try{history[name]=wrapped;wrappers.push({name,previous,wrapped});}catch{}
+// Route changes are handled asynchronously (rAF-coalesced) so a synchronous
+// history.replaceState call issued during Discord's scroll/render cycle can
+// never trigger DOM mounting/removal in the middle of a scroll gesture.
+function scheduleReconcile(){
+  if(state.pending) return;
+  state.pending = true;
+  requestAnimationFrame(()=>{state.pending=false;reconcile();});
 }
-function onShow(){state.suspended=false;reconcile();}
+// Prefer the Navigation API where available; fall back to history patching.
+let navigationHandler = null;
+const wrappers=[];
+if (window.navigation && typeof window.navigation.addEventListener === 'function') {
+  navigationHandler = () => scheduleReconcile();
+  window.navigation.addEventListener('currententrychange', navigationHandler);
+} else {
+  for(const name of ['pushState','replaceState']){
+    const previous=history[name];
+    function wrapped(...args){
+      const result=Reflect.apply(previous,this,args);
+      scheduleReconcile();
+      return result;
+    }
+    try{history[name]=wrapped;wrappers.push({name,previous,wrapped});}catch{}
+  }
+}
+function onShow(){state.suspended=false;scheduleReconcile();}
 function onHide(){state.suspended=true;detach();}
-window.addEventListener('popstate',reconcile);
+window.addEventListener('popstate',scheduleReconcile);
 window.addEventListener('pageshow',onShow);
 window.addEventListener('pagehide',onHide);
 // One-shot readiness retry, not a DOM observer or a recurring timer.
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',reconcile,{once:true});
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',scheduleReconcile,{once:true});
 state.destroy=()=>{
   detach();
-  window.removeEventListener('popstate',reconcile);
+  window.removeEventListener('popstate',scheduleReconcile);
   window.removeEventListener('pageshow',onShow);
   window.removeEventListener('pagehide',onHide);
-  document.removeEventListener('DOMContentLoaded',reconcile);
+  document.removeEventListener('DOMContentLoaded',scheduleReconcile);
+  if(navigationHandler && window.navigation) window.navigation.removeEventListener('currententrychange',navigationHandler);
   for(const {name,previous,wrapped} of wrappers)if(history[name]===wrapped)history[name]=previous;
   delete window[KEY];
 };
