@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         DISCORD-Orbs-Video-Skip
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      3.0.2
+// @version      3.0.3
 // @description  Bypass ads for Discord Orbs with this smart helper script.
 // @author       xXSalamanderXx
 // @match        https://discord.com/*
@@ -10,16 +10,18 @@
 // @run-at       document-idle
 // ==/UserScript==
 /* Manual start only. No API calls, automatic claims, or CAPTCHA solving.
- * No route polling, chat style changes, scroll writes, or automatic focus.
- * v3.0.2: removed Popover/top-layer usage and made route-change handling
- * asynchronous so it cannot interfere with Discord chat scroll handling.
+ * No route polling of DOM, chat style changes, scroll writes, or automatic focus.
+ * v3.0.3: removed history.pushState/replaceState monkey-patching entirely.
+ * Discord can detect patched history methods and remount its virtualised chat
+ * list, resetting scroll position. Route detection now uses the Navigation API
+ * (currententrychange) with a cheap pathname-only interval fallback.
  */
 (() => {
 'use strict';
 if (self !== top) return;
-const KEY = Symbol.for('orbs.helper.lifecycle.v302');
+const KEY = Symbol.for('orbs.helper.lifecycle.v303');
 if (window[KEY]) return;
-const state = {session:null, suspended:false, pending:false};
+const state = {session:null, suspended:false, lastPath:null};
 window[KEY] = state;
 const quest = () => /^\/quest-home\/?$/.test(location.pathname);
 const FEED = '[data-jump-section="global"]';
@@ -44,8 +46,6 @@ function mount() {
   if (state.session || !quest() || state.suspended || !document.body) return;
   const host = document.createElement('div');
   host.id = 'orbs-simple-host';
-  // Plain fixed element: never uses the Popover API or the top layer, which
-  // can interfere with Discord's virtualised chat scrolling/focus handling.
   host.style.cssText = 'all:initial!important;position:fixed!important;inset:auto 18px 18px auto!important;margin:0!important;padding:0!important;border:0!important;width:max-content!important;height:max-content!important;max-width:calc(100vw - 36px)!important;background:transparent!important;overflow:visible!important;z-index:2147483647!important;pointer-events:auto!important;contain:layout style!important;';
   const root = host.attachShadow({mode:'closed'});
   root.innerHTML = `<style>
@@ -82,7 +82,6 @@ function mount() {
   listen('watch',async()=>{
     if(!valid()) return;
     if(x.run){x.run.abort();return;}
-    // Exclude chat-fed players before any visibility reads or media mutations.
     const players=[];
     for(const v of document.querySelectorAll(VIDEO)){
       if(!v.closest(FEED) && !v.loop && !v.error && Number.isFinite(v.duration) && v.duration>0 && visible(v)) players.push(v);
@@ -91,7 +90,6 @@ function mount() {
     const video=players[0];
     const container=video.closest(PLAYER);
     if(!container || container.closest(FEED) || container.querySelector(FEED)) {log('Safe quest player container not identified.');return;}
-    // Only a dedicated dialog without a message feed may broaden the scope.
     const dialog=video.closest('[role="dialog"],dialog');
     const scope=dialog && !dialog.closest(FEED) && !dialog.querySelector(FEED) ? dialog : container;
     const run=new AbortController();x.run=run;
@@ -178,7 +176,6 @@ function mount() {
     }catch(e){log(e.message);}
     finally{restore();if(x.run===run)x.run=null;if(valid())$('watch').textContent='I started watching';}
   });
-  // The only added node is outside #app-mount, never in a Discord scroller.
   document.body.append(host);toggle(minimized);
 }
 function reconcile(){
@@ -186,46 +183,37 @@ function reconcile(){
   if(state.session && !state.session.host.isConnected)detach();
   if(!state.session){try{mount();}catch(e){detach();console.warn('[Orbs] Mount failed:',e);}}
 }
-// Route changes are handled asynchronously (rAF-coalesced) so a synchronous
-// history.replaceState call issued during Discord's scroll/render cycle can
-// never trigger DOM mounting/removal in the middle of a scroll gesture.
-function scheduleReconcile(){
-  if(state.pending) return;
-  state.pending = true;
-  requestAnimationFrame(()=>{state.pending=false;reconcile();});
-}
-// Prefer the Navigation API where available; fall back to history patching.
+// Route detection without monkey-patching history.
+// Discord can detect patched pushState/replaceState and remount its chat list,
+// resetting scroll position. Navigation API covers all SPA route changes.
 let navigationHandler = null;
-const wrappers=[];
+let routeInterval = null;
 if (window.navigation && typeof window.navigation.addEventListener === 'function') {
-  navigationHandler = () => scheduleReconcile();
+  navigationHandler = () => reconcile();
   window.navigation.addEventListener('currententrychange', navigationHandler);
 } else {
-  for(const name of ['pushState','replaceState']){
-    const previous=history[name];
-    function wrapped(...args){
-      const result=Reflect.apply(previous,this,args);
-      scheduleReconcile();
-      return result;
+  state.lastPath = location.pathname;
+  routeInterval = setInterval(()=>{
+    if(location.pathname !== state.lastPath){
+      state.lastPath = location.pathname;
+      reconcile();
     }
-    try{history[name]=wrapped;wrappers.push({name,previous,wrapped});}catch{}
-  }
+  }, 800);
 }
-function onShow(){state.suspended=false;scheduleReconcile();}
+function onShow(){state.suspended=false;reconcile();}
 function onHide(){state.suspended=true;detach();}
-window.addEventListener('popstate',scheduleReconcile);
+window.addEventListener('popstate',reconcile);
 window.addEventListener('pageshow',onShow);
 window.addEventListener('pagehide',onHide);
-// One-shot readiness retry, not a DOM observer or a recurring timer.
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',scheduleReconcile,{once:true});
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',reconcile,{once:true});
 state.destroy=()=>{
   detach();
-  window.removeEventListener('popstate',scheduleReconcile);
+  window.removeEventListener('popstate',reconcile);
   window.removeEventListener('pageshow',onShow);
   window.removeEventListener('pagehide',onHide);
-  document.removeEventListener('DOMContentLoaded',scheduleReconcile);
+  document.removeEventListener('DOMContentLoaded',reconcile);
   if(navigationHandler && window.navigation) window.navigation.removeEventListener('currententrychange',navigationHandler);
-  for(const {name,previous,wrapped} of wrappers)if(history[name]===wrapped)history[name]=previous;
+  if(routeInterval) clearInterval(routeInterval);
   delete window[KEY];
 };
 reconcile();
