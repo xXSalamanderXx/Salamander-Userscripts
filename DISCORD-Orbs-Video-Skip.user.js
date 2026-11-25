@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         DISCORD-Orbs-Video-Skip
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      4.0.2
+// @version      4.0.3
 // @description  One-button quest playback with progressively slower retries and claim-readiness checks.
 // @author       xXSalamanderXx
 // @match        https://discord.com/*
@@ -14,24 +14,22 @@
 (() => {
 'use strict';
 if (window.top !== window.self || document.getElementById('orbs-simple-host')) return;
-if (!document.documentElement) return;
+if (!document.body) return;
 
 const CONFIG = {claimWaitMs:10000, fallbackWaitMs:10000, stallMs:20000,
  plans:[{rate:16,seek:true},{rate:16},{rate:8},{rate:4},{rate:2},{rate:1}]};
 
-// Append to <html> instead of <body> to avoid interfering with Discord's flex/grid layouts
 const host = document.createElement('div');
 host.id = 'orbs-simple-host';
-document.documentElement.append(host);
+document.body.append(host);
 
 const shadow = host.attachShadow({mode:'open'});
 shadow.innerHTML = `<style>
 :host {
-  all: initial;
   position: fixed;
   top: 0; left: 0; width: 0; height: 0;
   overflow: visible;
-  z-index: 2147483647;
+  z-index: 10000;
   pointer-events: none;
   color: #dbdee1;
   font: 13px/1.5 system-ui;
@@ -70,7 +68,7 @@ button { cursor: pointer; color: white; background: #6539a8; border: 0; border-r
 button:focus-visible { outline: 2px solid #b9c2ff; }
 #minimise { width: 30px; height: 30px; background: #ffffff09; font-size: 21px; }
 
-.watch-wrap { position: relative; width: 100%; }
+.watch-wrap { position: relative; width: 100%; margin-bottom: 30px; }
 #watch {
   width: 100%; padding: 16px 10px;
   font: 700 15px system-ui;
@@ -78,20 +76,20 @@ button:focus-visible { outline: 2px solid #b9c2ff; }
   box-shadow: 0 0 17px #a058ff60;
 }
 
-/* Custom Tooltip */
+/* Tooltip drops DOWN to avoid being clipped by the top of the panel */
 .tooltip {
   position: absolute;
-  bottom: calc(100% + 10px);
+  top: calc(100% + 8px);
   left: 50%;
-  transform: translateX(-50%) translateY(4px);
+  transform: translateX(-50%) translateY(-4px);
   width: 280px;
-  padding: 12px 16px;
+  padding: 14px 18px;
   background: #111214;
   color: #dbdee1;
   border-radius: 10px;
   border: 1px solid #a978ee55;
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.6;
   text-align: center;
   box-shadow: 0 8px 24px #0008;
   opacity: 0;
@@ -103,9 +101,9 @@ button:focus-visible { outline: 2px solid #b9c2ff; }
 .tooltip::after {
   content: '';
   position: absolute;
-  top: 100%; left: 50%; margin-left: -6px;
+  bottom: 100%; left: 50%; margin-left: -6px;
   border-width: 6px; border-style: solid;
-  border-color: #111214 transparent transparent transparent;
+  border-color: transparent transparent #111214 transparent;
 }
 .watch-wrap:hover .tooltip, .watch-wrap:focus-within .tooltip {
   opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0);
@@ -166,10 +164,8 @@ function log(text, kind='info') {
 
 function shown(e) {
   if (!e?.isConnected || e.closest('[hidden],[aria-hidden="true"]')) return false;
-  for (let n = e; n instanceof Element; n = n.parentElement) {
-    const s = getComputedStyle(n);
-    if (s.display === 'none' || s.visibility === 'hidden' || Number(s.opacity) === 0) return false;
-  }
+  // FAST visibility check, no expensive getComputedStyle loops
+  if (e.offsetParent === null && getComputedStyle(e).position !== 'fixed') return false;
   const r = e.getBoundingClientRect();
   return r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth;
 }
@@ -408,7 +404,6 @@ $('copy').onclick = async () => {
   if (copied) copyTimer = setTimeout(() => { if (request === copyRequest) feedback.textContent = ''; }, 5000);
 };
 
-// --- Dragging Logic (Optimized, no layout thrashing) ---
 const panel = $('panel'), handle = $('header');
 let dragging = null;
 
@@ -417,7 +412,6 @@ $('orb').onclick = () => {
   panel.hidden = false; 
   $('orb').hidden = true; 
   
-  // Set position natively on first open to prevent off-screen spawns
   if (!panel.style.left) {
     panel.style.right = '18px';
     panel.style.bottom = '18px';
@@ -428,12 +422,18 @@ $('orb').onclick = () => {
 handle.addEventListener('pointerdown', e => {
   if (e.button !== 0 || e.target.closest('button')) return;
   const rect = panel.getBoundingClientRect();
+  
+  // Lock coordinates before dragging to avoid layout shifts
+  panel.style.right = 'auto';
+  panel.style.bottom = 'auto';
+  panel.style.left = rect.left + 'px';
+  panel.style.top = rect.top + 'px';
+  panel.style.transform = 'none';
+  
   dragging = {
     id: e.pointerId,
-    x: e.clientX,
-    y: e.clientY,
-    left: rect.left,
-    top: rect.top
+    startX: e.clientX,
+    startY: e.clientY
   };
   handle.setPointerCapture(e.pointerId);
   e.preventDefault();
@@ -441,16 +441,20 @@ handle.addEventListener('pointerdown', e => {
 
 handle.addEventListener('pointermove', e => {
   if (!dragging || dragging.id !== e.pointerId) return;
-  // Directly update absolute position without triggering layout loops
-  panel.style.left = `${dragging.left + e.clientX - dragging.x}px`;
-  panel.style.top = `${dragging.top + e.clientY - dragging.y}px`;
-  panel.style.right = 'auto';
-  panel.style.bottom = 'auto';
+  const dx = e.clientX - dragging.startX;
+  const dy = e.clientY - dragging.startY;
+  // Use hardware-accelerated transform instead of left/top
+  panel.style.transform = `translate(${dx}px, ${dy}px)`;
 });
 
 function endDrag(e) {
   if (dragging && dragging.id === e.pointerId) {
     dragging = null;
+    // Commit the final position to left/top and clear transform
+    const rect = panel.getBoundingClientRect();
+    panel.style.left = rect.left + 'px';
+    panel.style.top = rect.top + 'px';
+    panel.style.transform = 'none';
   }
 }
 
@@ -458,7 +462,6 @@ handle.addEventListener('pointerup', endDrag);
 handle.addEventListener('pointercancel', endDrag);
 handle.addEventListener('lostpointercapture', endDrag);
 
-// Cleanup on page unload
 addEventListener('pagehide', () => {
   if (active) { active.cancelled = true; restore(active); active = null; }
 }, { once: true });
