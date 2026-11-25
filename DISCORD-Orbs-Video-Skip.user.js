@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         DISCORD-Orbs-Video-Skip
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      4.0.3
+// @version      4.0.4
 // @description  One-button quest playback with progressively slower retries and claim-readiness checks.
 // @author       xXSalamanderXx
 // @match        https://discord.com/*
@@ -14,25 +14,20 @@
 (() => {
 'use strict';
 if (window.top !== window.self || document.getElementById('orbs-simple-host')) return;
-if (!document.body) return;
+if (!document.documentElement) return;
 
 const CONFIG = {claimWaitMs:10000, fallbackWaitMs:10000, stallMs:20000,
  plans:[{rate:16,seek:true},{rate:16},{rate:8},{rate:4},{rate:2},{rate:1}]};
 
+// Append to <html> to completely bypass Discord's React body layout
 const host = document.createElement('div');
 host.id = 'orbs-simple-host';
-document.body.append(host);
+document.documentElement.appendChild(host);
 
 const shadow = host.attachShadow({mode:'open'});
 shadow.innerHTML = `<style>
 :host {
-  position: fixed;
-  top: 0; left: 0; width: 0; height: 0;
-  overflow: visible;
-  z-index: 10000;
-  pointer-events: none;
-  color: #dbdee1;
-  font: 13px/1.5 system-ui;
+  display: contents;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -40,18 +35,20 @@ shadow.innerHTML = `<style>
 #panel {
   position: fixed;
   right: 18px; bottom: 18px;
-  width: 330px;
-  max-width: calc(100vw - 36px);
+  width: 340px;
+  min-height: 400px; /* Taller UI */
   max-height: calc(100vh - 36px);
   max-height: calc(100dvh - 36px);
-  background: linear-gradient(145deg, #272232, #191a22);
+  background: #272232;
   border: 1px solid #a978ee55;
   border-radius: 16px;
-  box-shadow: 0 16px 50px #0009;
-  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+  overflow: visible; /* Allow tooltip to render outside */
   display: flex;
   flex-direction: column;
   pointer-events: auto;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 #header {
@@ -59,54 +56,63 @@ shadow.innerHTML = `<style>
   padding: 13px 14px;
   cursor: grab; touch-action: none; user-select: none;
   border-bottom: 1px solid #b78af51c;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  background: #272232;
 }
 #header:active { cursor: grabbing; }
 h2 { margin: 0; font-size: 14px; color: white; }
-#content { padding: 15px; overflow-y: auto; min-height: 0; }
+#content { 
+  padding: 15px; 
+  overflow-y: auto; 
+  min-height: 0; 
+  background: #191a22;
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+}
 
 button { cursor: pointer; color: white; background: #6539a8; border: 0; border-radius: 12px; }
 button:focus-visible { outline: 2px solid #b9c2ff; }
 #minimise { width: 30px; height: 30px; background: #ffffff09; font-size: 21px; }
 
-.watch-wrap { position: relative; width: 100%; margin-bottom: 30px; }
+.watch-wrap { position: relative; width: 100%; margin-bottom: 40px; }
 #watch {
   width: 100%; padding: 16px 10px;
   font: 700 15px system-ui;
   background: linear-gradient(125deg, #6539a8, #4937a0);
-  box-shadow: 0 0 17px #a058ff60;
 }
 
-/* Tooltip drops DOWN to avoid being clipped by the top of the panel */
+/* Tooltip drops down below the button */
 .tooltip {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 12px);
   left: 50%;
-  transform: translateX(-50%) translateY(-4px);
-  width: 280px;
+  transform: translateX(-50%);
+  width: 100%;
   padding: 14px 18px;
-  background: #111214;
+  background: #181920;
   color: #dbdee1;
   border-radius: 10px;
   border: 1px solid #a978ee55;
   font-size: 13px;
   line-height: 1.6;
   text-align: center;
-  box-shadow: 0 8px 24px #0008;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.2s, transform 0.2s, visibility 0.2s;
   pointer-events: none;
-  z-index: 10;
+  z-index: 50;
+  transition: opacity 0.2s;
 }
-.tooltip::after {
+.tooltip::before {
   content: '';
   position: absolute;
-  bottom: 100%; left: 50%; margin-left: -6px;
-  border-width: 6px; border-style: solid;
-  border-color: transparent transparent #111214 transparent;
+  bottom: 100%; left: 50%; margin-left: -8px;
+  border-width: 8px; border-style: solid;
+  border-color: transparent transparent #181920 transparent;
 }
 .watch-wrap:hover .tooltip, .watch-wrap:focus-within .tooltip {
-  opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0);
+  opacity: 1; visibility: visible;
 }
 
 small { display: block; margin-top: 9px; color: #b5bac1; }
@@ -115,10 +121,12 @@ summary { cursor: pointer; }
 pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow: auto; background: #111214; border-radius: 9px; padding: 10px; }
 #orb {
   position: fixed; right: 20px; bottom: 20px; width: 50px; height: 50px;
-  border-radius: 50%; border: 1px solid #ddaaffaa;
-  background: radial-gradient(circle at 33% 25%, #efd2ff, #ba7aff 18%, #7d40cf 48%, #302268 85%);
-  box-shadow: 0 0 22px #a459ff70;
+  border-radius: 50%; border: 2px solid #ddaaff;
+  background: #7d40cf;
+  box-shadow: 0 0 15px rgba(164, 89, 255, 0.5);
   pointer-events: auto;
+  will-change: transform;
+  transform: translateZ(0);
 }
 #copy { background: none; color: #c8a5ff; text-decoration: underline; padding: 5px 0; }
 #log.empty { color: #94909c; font-style: italic; }
@@ -164,7 +172,6 @@ function log(text, kind='info') {
 
 function shown(e) {
   if (!e?.isConnected || e.closest('[hidden],[aria-hidden="true"]')) return false;
-  // FAST visibility check, no expensive getComputedStyle loops
   if (e.offsetParent === null && getComputedStyle(e).position !== 'fixed') return false;
   const r = e.getBoundingClientRect();
   return r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth;
@@ -423,7 +430,6 @@ handle.addEventListener('pointerdown', e => {
   if (e.button !== 0 || e.target.closest('button')) return;
   const rect = panel.getBoundingClientRect();
   
-  // Lock coordinates before dragging to avoid layout shifts
   panel.style.right = 'auto';
   panel.style.bottom = 'auto';
   panel.style.left = rect.left + 'px';
@@ -443,14 +449,12 @@ handle.addEventListener('pointermove', e => {
   if (!dragging || dragging.id !== e.pointerId) return;
   const dx = e.clientX - dragging.startX;
   const dy = e.clientY - dragging.startY;
-  // Use hardware-accelerated transform instead of left/top
   panel.style.transform = `translate(${dx}px, ${dy}px)`;
 });
 
 function endDrag(e) {
   if (dragging && dragging.id === e.pointerId) {
     dragging = null;
-    // Commit the final position to left/top and clear transform
     const rect = panel.getBoundingClientRect();
     panel.style.left = rect.left + 'px';
     panel.style.top = rect.top + 'px';
