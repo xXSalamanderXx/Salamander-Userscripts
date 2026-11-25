@@ -6,11 +6,11 @@ Collection of Various UserScripts for Tampermonkey, Violentmonkey and other user
 
 | Script | Description | Install |
 |---|---|---|
-| [Discord - Orbs Video Skip](https://github.com/xXSalamanderXx/Salamander-Userscripts/blob/main/DISCORD-Orbs-Video-Skip.user.js) | Attempts to speed up the rate of Orbs collection, with honest fallback handling. (Removed Temporarily) | [](https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/DISCORD-Orbs-Video-Skip.user.js) |
 | [Youtube - Disable Miniplayer](https://github.com/xXSalamanderXx/Salamander-Userscripts/blob/main/YOUTUBE-Disable-Miniplayer.user.js) | Disables YouTube’s miniplayer by blocking DOM attributes, intercepting navigation, and pausing playback. | [Install](https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Disable-Miniplayer.user.js) |
 | [Youtube - Modern Clean Tabbed Tube](https://github.com/xXSalamanderXx/Salamander-Userscripts/blob/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js) | Adds rounded YouTube tabs with a configurable default panel. | [Install](https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js) |
 | [Youtube - More Speeds](https://github.com/xXSalamanderXx/Salamander-Userscripts/blob/main/YOUTUBE-More-Speeds.user.js) | Adds a YouTube-style playback speed panel with a 0.25×–16× slider and 24 presets. | [Install](https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-More-Speeds.user.js) |
 | [All Sites - Force Right Click Enabler](https://github.com/xXSalamanderXx/Salamander-Userscripts/blob/main/Force-Right-Click-Enabler.user.js) | Restores native right-click menus, text selection, and copying on sites that block them, without changing the cursor. | [Install](https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/Force-Right-Click-Enabler.user.js) |
+| [Discord - Orbs Video Skip](https://github.com/xXSalamanderXx/Salamander-Userscripts/blob/main/DISCORD-Orbs-Video-Skip.user.js) | Attempts to speed up the rate of Orbs collection, with honest fallback handling. (Removed Temporarily Due to Discord Web Bugs) | [](https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/DISCORD-Orbs-Video-Skip.user.js) |
 
 ## Installation
 
