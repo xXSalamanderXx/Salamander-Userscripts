@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YOUTUBE-Modern-Clean-Tabbed-Tube
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      3.0.5
+// @version      3.0.6
 // @description  Rounded YouTube tabs with a configurable default panel.
 // @updateURL    https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
 // @downloadURL  https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
@@ -869,26 +869,10 @@ function getLangForPage() {
 
 
   const pillSelector = 'ytd-watch-flexy[tyt-tab][hide-default-text-inline-expander] ytd-watch-metadata #bottom-row #description ytd-watch-info-text:not([hidden])';
-  const restoreDateText = (pill, savedDate) => {
-    const date = pill.querySelector('#date-text');
-    if (!date || !savedDate) return;
-    const current = (date.textContent || '').trim();
-    if (current === savedDate.text) return;
-    const replacement = savedDate.element.cloneNode(true);
-    replacement.setAttribute('data-mctt-date-restored', '');
-    date.replaceWith(replacement);
-  };
-  const setPillExpanded = (pill, expanded, savedDate) => {
+  const setPillExpanded = (pill, expanded) => {
     pill.setAttribute('aria-expanded', String(expanded));
     if (typeof pill.detailed === 'boolean') pill.detailed = expanded;
     pill.toggleAttribute('detailed', expanded);
-    if (!savedDate) return;
-    const restore = () => restoreDateText(pill, savedDate);
-    restore();
-    requestAnimationFrame(restore);
-    setTimeout(restore, 30);
-    setTimeout(restore, 100);
-    setTimeout(restore, 250);
   };
   let pillVideo;
   const preparePills = () => {
@@ -933,12 +917,7 @@ function getLangForPage() {
     if (event.detail === 0 || (pill.getAttribute('aria-expanded') === 'true' && target.closest('a[href]'))) return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    const date = pill.querySelector('#date-text');
-    const savedDate = date ? {
-      text: (date.textContent || '').trim(),
-      element: date.cloneNode(true)
-    } : null;
-    setPillExpanded(pill, pill.getAttribute('aria-expanded') !== 'true', savedDate);
+    setPillExpanded(pill, pill.getAttribute('aria-expanded') !== 'true');
     flashControl(pill);
   };
   window.addEventListener('click', handlePill, true);
@@ -5853,10 +5832,10 @@ const styles = {
     font-size: 15px; line-height: 1.4;
   }
   ytd-watch-flexy[tyt-tab] :is(#bottom-row #description, #tab-info) ytd-watch-info-text :is(#date-text, #date-text *) {
-    font-size: 14px; line-height: 1.4;
+    font-size: 14px;
   }
   ytd-watch-flexy[tyt-tab] ytd-watch-info-text #info-container:has(#view-count):has(#date-text) { column-gap: 6px; flex-wrap: wrap; }
-  ytd-watch-flexy[tyt-tab] ytd-watch-info-text #date-text { height: auto; }
+
 
 
   /* Keep the old description preview fade out of the metadata pill. */
@@ -6066,7 +6045,7 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
     <dialog aria-labelledby="mctt-title">
       <form>
         <h2 id="mctt-title">Modern Clean Tabbed Tube</h2>
-        <p>By xXSalamanderXx · v3.0.5</p>
+        <p>By xXSalamanderXx · v3.0.6</p>
         <label for="mctt-choice">Default tab on new videos</label>
         <select id="mctt-choice" aria-describedby="mctt-help"></select>
         <p id="mctt-help">Choose 'None' to start with all tabs closed. Changes take effect on next page load.</p>
@@ -6212,7 +6191,7 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
   const selector = '#bottom-row #description ytd-watch-info-text[data-mctt-pill]';
   const style = document.createElement('style');
   style.id = 'mctt-responsive-pill-spacing';
-  style.textContent = "/* One content-sized layout, one gap, and equal outer padding. */\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill], ytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill][aria-expanded=\"true\"] {\n display: inline-flex !important;\n flex-direction: row !important;\n flex-wrap: wrap !important;\n align-items: baseline !important;\n justify-content: flex-start !important;\n gap: 8px 20px !important;\n box-sizing: border-box !important;\n width: max-content !important;\n inline-size: max-content !important;\n min-width: 0 !important;\n min-inline-size: 0 !important;\n max-width: 100% !important;\n max-inline-size: 100% !important;\n padding: 12px 24px !important;\n text-align: start !important;\n text-indent: 0 !important;\n}\n/* Flatten only structural wrappers so their padding and widths cannot add\n   an invisible leading column or duplicate the spacing between items. */\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] :is(#info-container, #info):not([hidden]) {\n display: contents !important;\n margin: 0 !important;\n padding: 0 !important;\n text-indent: 0 !important;\n}\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] :is(#info-container, #info) > :not([hidden]):not(style):not(tp-yt-paper-tooltip),\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] :is(#view-count, #date-text) {\n flex: 0 1 auto !important;\n width: auto !important;\n inline-size: auto !important;\n min-width: 0 !important;\n min-inline-size: 0 !important;\n max-inline-size: 100% !important;\n margin: 0 !important;\n padding: 0 !important;\n text-align: start !important;\n text-indent: 0 !important;\n height: auto !important;\n white-space: normal !important;\n overflow-wrap: anywhere !important;\n}\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] [hidden] { display: none !important; }\n@media (max-width: 600px) {\n ytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill], ytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill][aria-expanded=\"true\"] { padding: 10px 18px !important; column-gap: 16px !important; }\n}\n\n/* Empty native placeholders must not become gap-consuming flex items. */\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] [data-mctt-empty-placeholder] { display: none !important; }\n";
+  style.textContent = "/* One content-sized layout, one gap, and equal outer padding. */\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill], ytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill][aria-expanded=\"true\"] {\n display: inline-flex !important;\n flex-direction: row !important;\n flex-wrap: wrap !important;\n align-items: baseline !important;\n justify-content: flex-start !important;\n gap: 8px 20px !important;\n box-sizing: border-box !important;\n width: max-content !important;\n inline-size: max-content !important;\n min-width: 0 !important;\n min-inline-size: 0 !important;\n max-width: 100% !important;\n max-inline-size: 100% !important;\n padding: 12px 24px !important;\n text-align: start !important;\n text-indent: 0 !important;\n}\n/* Flatten only structural wrappers so their padding and widths cannot add\n   an invisible leading column or duplicate the spacing between items. */\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] :is(#info-container, #info):not([hidden]) {\n display: contents !important;\n margin: 0 !important;\n padding: 0 !important;\n text-indent: 0 !important;\n}\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] :is(#info-container, #info) > :not([hidden]):not(style):not(tp-yt-paper-tooltip),\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] #view-count {\n flex: 0 1 auto !important;\n width: auto !important;\n inline-size: auto !important;\n min-width: 0 !important;\n min-inline-size: 0 !important;\n max-inline-size: 100% !important;\n margin: 0 !important;\n padding: 0 !important;\n text-align: start !important;\n text-indent: 0 !important;\n height: auto !important;\n white-space: normal !important;\n overflow-wrap: anywhere !important;\n}\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] [hidden] { display: none !important; }\n@media (max-width: 600px) {\n ytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill], ytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill][aria-expanded=\"true\"] { padding: 10px 18px !important; column-gap: 16px !important; }\n}\n\n/* Empty native placeholders must not become gap-consuming flex items. */\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] [data-mctt-empty-placeholder] { display: none !important; }\n";
   (document.head || document.documentElement).appendChild(style);
 
   let frame = 0;
@@ -6347,20 +6326,6 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
   (document.head || document.documentElement).appendChild(style);
 })();
 
-// Align native expanded counters and date labels on the same vertical centre.
-(() => {
- const style = document.createElement("style");
- style.textContent = "\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill], ytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill][aria-expanded=\"true\"] { align-items: center !important; }\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] :is(#view-count, #date-text) {\n align-self: center !important;\n align-items: center !important;\n line-height: 1.4 !important;\n height: auto !important;\n min-height: 0 !important;\n padding-block: 0 !important;\n margin-block: 0 !important;\n top: auto !important;\n bottom: auto !important;\n}\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] :is(#view-count, #date-text) yt-animated-rolling-number {\n align-items: center !important;\n align-self: center !important;\n line-height: inherit !important;\n}\n";
- (document.head || document.documentElement).appendChild(style);
-})();
-
-// Keep animated time units on the numeric baseline.
-(() => {
- const style = document.createElement('style');
- style.textContent = "\n/* Centre metadata groups, but share a baseline WITHIN each animated label. */\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] #date-text yt-animated-rolling-number {\n display: inline-flex !important;\n align-items: baseline !important;\n vertical-align: baseline !important;\n font-size: inherit !important;\n line-height: inherit !important;\n}\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] #date-text yt-animated-rolling-number > *,\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] #date-text yt-animated-rolling-number > span > * {\n align-self: baseline !important;\n vertical-align: baseline !important;\n font-size: inherit !important;\n line-height: inherit !important;\n}\nytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] #date-text yt-animated-rolling-number > span {\n align-items: baseline !important;\n}\n";
- (document.head || document.documentElement).appendChild(style);
-})();
-
 // Theme coverage and offscreen comments preloading; no panel opacity overrides.
 (() => {
  const style = document.createElement("style");
@@ -6402,15 +6367,6 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
       ytd-grid-video-renderer:has(.yt-badge-shape--membership)
     ) {
       display: none !important;
-    }
-
-    /* Prevent the animated view counter from resetting the relative upload
-       date while the expandable view-count pill changes layout. */
-    ytd-watch-flexy[tyt-tab][hide-default-text-inline-expander]
-      #bottom-row #description ytd-watch-info-text[data-mctt-pill]
-      #date-text :is(yt-animated-rolling-number, .yt-animated-rolling-number) {
-      animation: none !important;
-      transition: none !important;
     }
 
     html[data-mctt-glass] ytd-watch-flexy[tyt-tab] {
