@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YOUTUBE-Modern-Clean-Tabbed-Tube
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      3.0.0
+// @version      3.0.1
 // @description  Rounded YouTube tabs with a configurable default panel.
 // @updateURL    https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
 // @downloadURL  https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
@@ -5964,14 +5964,14 @@ const mcttResources = [
   {
     title: 'Return YouTube Dislikes',
     links: [
-      ['Chrome', 'https://chromewebstore.google.com/detail/return-youtube-dislike'],
+      ['Chrome', 'https://chromewebstore.google.com/detail/return-youtube-dislike/gebbhagfogifgggkldgodflihgfeippi'],
       ['Firefox', 'https://addons.mozilla.org/en-US/firefox/addon/return-youtube-dislikes/']
     ]
   },
   {
     title: 'Block Ads',
     links: [
-      ['Chrome', 'https://chromewebstore.google.com/detail/adguard-adblocker'],
+      ['Chrome', 'https://chromewebstore.google.com/detail/adguard-adblocker/bgnkhhnnamicmpeenaelnjfhikgbkllg'],
       ['Firefox', 'https://addons.mozilla.org/en-US/firefox/addon/ublock-origin/']
     ]
   }
@@ -6002,25 +6002,25 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
     <style>
       :host { color-scheme: light; --surface:#fafafa; --text:#0f0f0f; --muted:#555; --control:#eee; --edge:#ddd; }
       :host([data-theme="dark"]) { color-scheme:dark; --surface:#212121; --text:#f5f5f5; --muted:#b8b8b8; --control:#343434; --edge:#484848; }
-      dialog { width:min(560px,calc(100vw - 36px)); box-sizing:border-box; padding:20px; max-height:calc(100dvh - 32px); overflow:auto; border-radius:24px; border:1px solid var(--edge); background:var(--surface); color:var(--text); box-shadow:0 20px 65px #0005; font:14px/1.5 Roboto,Arial,sans-serif; }
+      dialog { width:min(620px,calc(100vw - 24px)); box-sizing:border-box; padding:18px; max-height:calc(100dvh - 24px); overflow:auto; border-radius:24px; border:1px solid var(--edge); background:var(--surface); color:var(--text); box-shadow:0 20px 65px #0005; font:14px/1.5 Roboto,Arial,sans-serif; }
       dialog::backdrop { background:#0009; }
       h2 { margin:0; font-size:21px; line-height:1.25; }
       p { color:var(--muted); margin:6px 0 18px; }
       label { display:block; font-weight:600; margin-bottom:6px; }
-      select,button { font:inherit; color:inherit; border:1px solid var(--edge); background:var(--control); border-radius:999px; padding:8px 13px; }
+      select,button { font:inherit; color:inherit; border:1px solid var(--edge); background:var(--control); border-radius:999px; padding:7px 12px; }
       select { width:100%; }
-      fieldset { margin:0 0 14px; padding:6px 12px; min-inline-size:0; border:1px solid var(--edge); border-radius:16px; }
+      fieldset { margin:0 0 12px; padding:5px 12px; min-inline-size:0; border:1px solid var(--edge); border-radius:16px; }
       legend { padding-inline:5px; font-weight:700; }
-      .tweak { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:36px; margin:0; cursor:pointer; }
+      .tweak { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:34px; margin:0; cursor:pointer; }
       .tweak + .tweak { border-top:1px solid var(--edge); }
       .tweak input { appearance:none; position:relative; flex:0 0 40px; width:40px; height:24px; margin:0; border:1px solid var(--muted); border-radius:999px; background:var(--control); cursor:pointer; }
       .tweak input::before { content:''; position:absolute; inset-block-start:3px; inset-inline-start:3px; width:16px; height:16px; border-radius:50%; background:var(--muted); }
       .tweak input:checked { background:#065fd4; border-color:#065fd4; }
       .tweak input:checked::before { inset-inline-start:19px; background:white; }
-      .resource { margin:0 0 14px; padding:10px 12px; border:1px solid var(--edge); border-radius:16px; background:color-mix(in srgb, var(--control) 55%, transparent); }
-      .resource-title { font-weight:700; margin-bottom:6px; }
+      .resource { margin:0 0 12px; padding:9px 12px; border:1px solid var(--edge); border-radius:16px; background:color-mix(in srgb, var(--control) 55%, transparent); }
+      .resource-title { font-weight:700; margin-bottom:5px; }
       .resource-links { display:flex; flex-wrap:wrap; gap:8px; }
-      .resource-link { display:inline-flex; align-items:center; padding:6px 11px; border:1px solid var(--edge); border-radius:999px; background:var(--control); color:inherit; font-weight:600; text-decoration:none; }
+      .resource-link { display:inline-flex; align-items:center; padding:5px 10px; border:1px solid var(--edge); border-radius:999px; background:var(--control); color:inherit; font-weight:600; text-decoration:none; }
       .resource-link:hover { border-color:#3ea6ff; background:color-mix(in srgb, #3ea6ff 12%, var(--control)); }
       @media (forced-colors:active) { .tweak input { appearance:auto; } .tweak input::before { content:none; } }
       .support { margin: 18px 0 16px; padding: 14px; border: 1px solid var(--edge); border-radius: 16px; background: color-mix(in srgb, var(--control) 55%, transparent); }
@@ -6040,7 +6040,7 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
     <dialog aria-labelledby="mctt-title">
       <form>
         <h2 id="mctt-title">Modern Clean Tabbed Tube</h2>
-        <p>By xXSalamanderXx · v3.0.0</p>
+        <p>By xXSalamanderXx · v3.0.1</p>
         <label for="mctt-choice">Default tab on new videos</label>
         <select id="mctt-choice" aria-describedby="mctt-help"></select>
         <p id="mctt-help">Choose 'None' to start with all tabs closed. Changes take effect on next page load.</p>
@@ -6380,25 +6380,6 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
       display: none !important;
     }
 
-    /* The membership CTA can be rendered as "Sign Up" immediately to the left
-       of Subscribe. Match its accessible name/title without hiding Subscribe. */
-    html[data-mctt-hide-membership] :is(button, [role="button"]):not(ytd-subscribe-button-renderer *):not([aria-label*="Subscribe" i]):not([title*="Subscribe" i]):has(
-      :is(
-        [aria-label="Join" i], [aria-label="Sign Up" i], [aria-label="Subscribe+" i],
-        [title="Join" i], [title="Sign Up" i], [title="Subscribe+" i]
-      )
-    ) {
-      display: none !important;
-    }
-    html[data-mctt-hide-membership] ytd-button-renderer:has(
-      yt-button-view-model:has(
-        [aria-label="Join" i], [aria-label="Sign Up" i], [aria-label="Subscribe+" i],
-        [title="Join" i], [title="Sign Up" i], [title="Subscribe+" i]
-      )
-    ) {
-      display: none !important;
-    }
-
     html[data-mctt-glass] ytd-watch-flexy[tyt-tab] {
       --mctt-glass-tint: rgba(28, 30, 33, .38);
       --mctt-glass-shine: rgba(255, 255, 255, .06);
@@ -6492,4 +6473,34 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
     }
   `;
   (document.head || document.documentElement).appendChild(style);
+})();
+
+// Membership CTAs can be rendered as text-only "Sign Up" buttons. Use a DOM
+// observer because CSS cannot reliably match rendered button text.
+(() => {
+  const membershipLabels = new Set(['join', 'sign up', 'subscribe+']);
+  const isMembershipButton = (element) => {
+    if (!element || element.closest('ytd-subscribe-button-renderer')) return false;
+    const label = (element.getAttribute('aria-label') || element.getAttribute('title') ||
+      element.textContent || '').trim().replace(/\s+/g, ' ').toLowerCase();
+    return membershipLabels.has(label);
+  };
+  const hideMembershipButtons = () => {
+    if (!document.documentElement.hasAttribute('data-mctt-hide-membership')) return;
+    for (const element of document.querySelectorAll(
+      'ytd-button-renderer, yt-button-view-model, button, [role="button"]'
+    )) {
+      if (isMembershipButton(element)) {
+        element.setAttribute('data-mctt-membership-hidden', '');
+        element.style.setProperty('display', 'none', 'important');
+      }
+    }
+  };
+  const observer = new MutationObserver(() => requestAnimationFrame(hideMembershipButtons));
+  const start = () => {
+    hideMembershipButtons();
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+  };
+  if (document.documentElement) start();
+  else document.addEventListener('DOMContentLoaded', start, { once: true });
 })();
