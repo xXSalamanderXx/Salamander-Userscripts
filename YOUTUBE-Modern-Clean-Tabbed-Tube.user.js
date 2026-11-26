@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YOUTUBE-Modern-Clean-Tabbed-Tube
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.18
+// @version      2.19.0
 // @description  Rounded YouTube tabs with a configurable default panel.
 // @updateURL    https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
 // @downloadURL  https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
@@ -5954,9 +5954,17 @@ const mcttChoices = new Map([
   ['none', 'None'], ['description', 'Description'], ['videos', 'Videos'], ['comments', 'Comments']
 ]);
 const mcttStorageKey = 'defaultTab';
+const mcttTweaks = [
+  ['hideCreate', 'data-mctt-hide-create', "Hide 'Create' Button"],
+  ['hidePlayerInfo', 'data-mctt-hide-player-info', "Hide 'I' Info Button in Video Player"],
+  ['glassEffect', 'data-mctt-glass', 'Glass Effect']
+];
 const mcttPublish = () => {
   const value = GM_getValue(mcttStorageKey, 'description');
   document.documentElement.setAttribute('data-mctt-default', mcttChoices.has(value) ? value : 'description');
+  for (const [key, attr] of mcttTweaks) {
+    document.documentElement.toggleAttribute(attr, GM_getValue(key, false) === true);
+  }
 };
 let mcttDialog;
 GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
@@ -5983,6 +5991,16 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
       label { display:block; font-weight:600; margin-bottom:6px; }
       select,button { font:inherit; color:inherit; border:1px solid var(--edge); background:var(--control); border-radius:999px; padding:9px 14px; }
       select { width:100%; }
+      dialog { max-height:calc(100dvh - 32px); overflow:auto; }
+      fieldset { margin:0; padding:8px 12px; min-inline-size:0; border:1px solid var(--edge); border-radius:16px; }
+      legend { padding-inline:5px; font-weight:700; }
+      .tweak { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:40px; margin:0; cursor:pointer; }
+      .tweak + .tweak { border-top:1px solid var(--edge); }
+      .tweak input { appearance:none; position:relative; flex:0 0 40px; width:40px; height:24px; margin:0; border:1px solid var(--muted); border-radius:999px; background:var(--control); cursor:pointer; }
+      .tweak input::before { content:''; position:absolute; inset-block-start:3px; inset-inline-start:3px; width:16px; height:16px; border-radius:50%; background:var(--muted); }
+      .tweak input:checked { background:#065fd4; border-color:#065fd4; }
+      .tweak input:checked::before { inset-inline-start:19px; background:white; }
+      @media (forced-colors:active) { .tweak input { appearance:auto; } .tweak input::before { content:none; } }
       .support { margin: 18px 0 16px; padding: 14px; border: 1px solid var(--edge); border-radius: 16px; background: color-mix(in srgb, var(--control) 55%, transparent); }
       .support-title { display:flex; align-items:center; gap:8px; font-weight:700; margin-bottom:10px; }
       .heart { width:16px; height:16px; fill:#ff4d6d; flex:0 0 auto; }
@@ -6000,10 +6018,14 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
     <dialog aria-labelledby="mctt-title">
       <form>
         <h2 id="mctt-title">Modern Clean Tabbed Tube</h2>
-        <p>By xXSalamanderXx · v2.18</p>
+        <p>By xXSalamanderXx · v2.19.0</p>
         <label for="mctt-choice">Default tab on new videos</label>
         <select id="mctt-choice" aria-describedby="mctt-help"></select>
         <p id="mctt-help">Choose 'None' to start with all tabs closed. Changes take effect on next page load.</p>
+        <fieldset id="mctt-tweaks">
+          <legend>Other Page Tweaks</legend>
+          ${mcttTweaks.map(([key, , label]) => `<label class="tweak"><span>${label}</span><input type="checkbox" role="switch" name="${key}"></label>`).join('')}
+        </fieldset>
         <section class="support">
           <div class="support-title">
             <svg class="heart" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.7-9.7-9A5.6 5.6 0 0 1 12 5.6 5.6 5.6 0 0 1 21.7 12c-2.2 4.3-9.7 9-9.7 9z"/></svg>
@@ -6027,12 +6049,15 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
   for (const [value, label] of mcttChoices) select.add(new Option(label, value));
   const stored = GM_getValue(mcttStorageKey, 'description');
   select.value = mcttChoices.has(stored) ? stored : 'description';
+  const switches = [...shadow.querySelectorAll('#mctt-tweaks input')];
+  for (const input of switches) input.checked = GM_getValue(input.name, false) === true;
   const dialog = mcttDialog = shadow.querySelector('dialog');
   dialog.addEventListener('close', () => { dialogThemeObserver.disconnect(); host.remove(); mcttDialog = null; }, {once:true});
   shadow.querySelector('button[type="button"]').addEventListener('click', () => dialog.close());
   shadow.querySelector('form').addEventListener('submit', event => {
     event.preventDefault();
     GM_setValue(mcttStorageKey, select.value);
+    for (const input of switches) GM_setValue(input.name, input.checked);
     mcttPublish();
     dialog.close();
   });
@@ -6292,4 +6317,49 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
  style.id = "mctt-watch-column-stacking";
  style.textContent = "\n/* Separate sibling paint layers in the normal two-column watch layout.\n   Player descendants (including the ambient backdrop) stay below the sidebar.\n   Do not clip #primary: its player controls and menus must remain functional. */\nytd-watch-flexy[tyt-tab][is-two-columns_]:not([theater]):not([fullscreen])\n #columns > #primary {\n position: relative;\n isolation: isolate;\n z-index: 0;\n}\nytd-watch-flexy[tyt-tab][is-two-columns_]:not([theater]):not([fullscreen])\n #columns > #secondary {\n position: relative;\n isolation: isolate;\n z-index: 1;\n}\n";
  (document.head || document.documentElement).appendChild(style);
+})();
+
+
+// Opt-in page tweaks. Root flags keep these rules active across YouTube navigation.
+(() => {
+  const style = document.createElement('style');
+  style.id = 'mctt-page-tweaks';
+  style.textContent = `
+    html[data-mctt-hide-create] ytd-masthead :is(#create-button, #create-icon),
+    html[data-mctt-hide-create] ytd-masthead #end :is(button, [role="button"])[aria-label="Create" i],
+    html[data-mctt-hide-create] ytd-masthead #end a[aria-label="Create" i],
+    html[data-mctt-hide-player-info] .html5-video-player :is(.ytp-cards-button, button:has(.ytp-cards-button-icon), [role="button"]:has(.ytp-cards-button-icon), .ytp-cards-button-icon) {
+      display: none !important;
+    }
+
+    html[data-mctt-glass] ytd-watch-flexy[tyt-tab] {
+      --mctt-glass-tint: rgba(248, 251, 255, .66);
+      --mctt-glass-shine: rgba(255, 255, 255, .65);
+      --mctt-glass-rim: rgba(132, 154, 188, .36);
+      --mctt-glass-shadow: rgba(28, 48, 75, .12);
+    }
+    html[data-mctt-glass]:is([dark], :has(ytd-app[dark])) ytd-watch-flexy[tyt-tab] {
+      --mctt-glass-tint: rgba(27, 30, 39, .69);
+      --mctt-glass-shine: rgba(220, 231, 255, .12);
+      --mctt-glass-rim: rgba(219, 230, 255, .23);
+      --mctt-glass-shadow: rgba(0, 0, 0, .26);
+    }
+    html[data-mctt-glass] ytd-watch-flexy[tyt-tab] #right-tabs :is(#material-tabs, .tab-content),
+    html[data-mctt-glass] ytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] {
+      background-color: var(--mctt-glass-tint) !important;
+      background-image: linear-gradient(145deg, var(--mctt-glass-shine), transparent 72%) !important;
+      border-color: var(--mctt-glass-rim) !important;
+      box-shadow: inset 0 1px 0 var(--mctt-glass-shine), 0 6px 20px var(--mctt-glass-shadow);
+    }
+    html[data-mctt-glass] ytd-watch-flexy[tyt-tab] #right-tabs :is(#material-tabs, .tab-content:not(.tab-content-hidden)),
+    html[data-mctt-glass] ytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] {
+      -webkit-backdrop-filter: blur(16px) saturate(150%);
+      backdrop-filter: blur(16px) saturate(150%);
+    }
+    html[data-mctt-glass] ytd-watch-flexy[tyt-tab] #right-tabs #material-tabs a.tab-btn[tyt-tab-content]:not(.active):not(:hover):not(:active) {
+      background: color-mix(in srgb, var(--mctt-pill) 60%, transparent);
+      border-color: var(--mctt-glass-rim);
+    }
+  `;
+  (document.head || document.documentElement).appendChild(style);
 })();
