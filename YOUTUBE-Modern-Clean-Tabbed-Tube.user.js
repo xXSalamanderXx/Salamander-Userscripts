@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YOUTUBE-Modern-Clean-Tabbed-Tube
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.19.1
+// @version      2.19.2
 // @description  Rounded YouTube tabs with a configurable default panel.
 // @updateURL    https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
 // @downloadURL  https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
@@ -6019,7 +6019,7 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
     <dialog aria-labelledby="mctt-title">
       <form>
         <h2 id="mctt-title">Modern Clean Tabbed Tube</h2>
-        <p>By xXSalamanderXx · v2.19.1</p>
+        <p>By xXSalamanderXx · v2.19.2</p>
         <label for="mctt-choice">Default tab on new videos</label>
         <select id="mctt-choice" aria-describedby="mctt-help"></select>
         <p id="mctt-help">Choose 'None' to start with all tabs closed. Changes take effect on next page load.</p>
@@ -6320,6 +6320,7 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
  (document.head || document.documentElement).appendChild(style);
 })();
 
+
 // Opt-in page tweaks. Root flags keep these rules active across YouTube navigation.
 (() => {
   const style = document.createElement('style');
@@ -6336,7 +6337,6 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
       --mctt-glass-tint: rgba(28, 30, 33, .38);
       --mctt-glass-shine: rgba(255, 255, 255, .06);
       --mctt-glass-rim: rgba(180, 188, 200, .20);
-      --mctt-glass-shadow: rgba(0, 0, 0, .16);
       --mctt-glass-hover-rim: rgba(210, 220, 235, .38);
       --mctt-glass-hover-glow: rgba(160, 180, 210, .22);
     }
@@ -6344,22 +6344,25 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
       --mctt-glass-tint: rgba(18, 19, 22, .38);
       --mctt-glass-shine: rgba(255, 255, 255, .05);
       --mctt-glass-rim: rgba(255, 255, 255, .16);
-      --mctt-glass-shadow: rgba(0, 0, 0, .26);
       --mctt-glass-hover-rim: rgba(255, 255, 255, .32);
       --mctt-glass-hover-glow: rgba(255, 255, 255, .18);
     }
-    html[data-mctt-glass] ytd-watch-flexy[tyt-tab] #right-tabs :is(#material-tabs, .tab-content),
+
+    /* Apply glass only to the visible sidebar surfaces. Do not add an outer
+       shadow or glow to the tab-content container: that can read as an
+       unintended highlight along its bottom edge during player repaints. */
+    html[data-mctt-glass] ytd-watch-flexy[tyt-tab] #right-tabs #material-tabs,
+    html[data-mctt-glass] ytd-watch-flexy[tyt-tab] #right-tabs .tab-content:not(.tab-content-hidden),
     html[data-mctt-glass] ytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] {
       background-color: var(--mctt-glass-tint) !important;
       background-image: linear-gradient(145deg, var(--mctt-glass-shine), transparent 72%) !important;
       border-color: var(--mctt-glass-rim) !important;
-      box-shadow: inset 0 1px 0 var(--mctt-glass-shine), 0 6px 20px var(--mctt-glass-shadow);
-    }
-    html[data-mctt-glass] ytd-watch-flexy[tyt-tab] #right-tabs :is(#material-tabs, .tab-content:not(.tab-content-hidden)),
-    html[data-mctt-glass] ytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] {
+      box-shadow: inset 0 1px 0 var(--mctt-glass-shine) !important;
       -webkit-backdrop-filter: blur(16px) saturate(130%);
       backdrop-filter: blur(16px) saturate(130%);
     }
+
+    /* Keep hover effects confined to the three tab buttons. */
     html[data-mctt-glass] ytd-watch-flexy[tyt-tab] #right-tabs #material-tabs a.tab-btn[tyt-tab-content]:not(.active) {
       background: color-mix(in srgb, var(--mctt-pill) 34%, transparent);
       border-color: var(--mctt-glass-rim);
@@ -6379,13 +6382,15 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
       box-shadow: inset 0 1px 0 var(--mctt-glass-shine), 0 0 0 1px var(--mctt-glass-hover-glow);
     }
 
+    /* Settings dialog follows the same darker charcoal liquid-glass language
+       only while Glass Effect is enabled. */
     html[data-mctt-glass] .mctt-settings-host dialog {
-      background-color: rgba(24, 26, 29, .46);
-      background-image: linear-gradient(145deg, rgba(255, 255, 255, .07), transparent 72%);
-      border-color: rgba(255, 255, 255, .18);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), 0 20px 65px rgba(0, 0, 0, .38);
-      -webkit-backdrop-filter: blur(20px) saturate(130%);
-      backdrop-filter: blur(20px) saturate(130%);
+      background-color: rgba(18, 19, 22, .38);
+      background-image: linear-gradient(145deg, rgba(255, 255, 255, .05), transparent 72%);
+      border-color: rgba(255, 255, 255, .16);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 20px 65px rgba(0, 0, 0, .38);
+      -webkit-backdrop-filter: blur(16px) saturate(130%);
+      backdrop-filter: blur(16px) saturate(130%);
       color: #f1f1f1;
       color-scheme: dark;
       --surface: transparent;
@@ -6401,7 +6406,7 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
     html[data-mctt-glass] .mctt-settings-host .support {
       background-color: rgba(255, 255, 255, .06);
       border-color: rgba(255, 255, 255, .16);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05);
       -webkit-backdrop-filter: blur(12px) saturate(130%);
       backdrop-filter: blur(12px) saturate(130%);
     }
