@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YOUTUBE-Modern-Clean-Tabbed-Tube
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      2.19.0
+// @version      2.19.1
 // @description  Rounded YouTube tabs with a configurable default panel.
 // @updateURL    https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
 // @downloadURL  https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
@@ -5970,6 +5970,7 @@ let mcttDialog;
 GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
   if (mcttDialog?.open) return;
   const host = document.createElement('div');
+  host.className = 'mctt-settings-host';
   const syncDialogTheme = () => {
     host.dataset.theme = document.documentElement.hasAttribute('dark') ||
       document.querySelector('ytd-app[dark]') ? 'dark' : 'light';
@@ -6018,7 +6019,7 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
     <dialog aria-labelledby="mctt-title">
       <form>
         <h2 id="mctt-title">Modern Clean Tabbed Tube</h2>
-        <p>By xXSalamanderXx · v2.19.0</p>
+        <p>By xXSalamanderXx · v2.19.1</p>
         <label for="mctt-choice">Default tab on new videos</label>
         <select id="mctt-choice" aria-describedby="mctt-help"></select>
         <p id="mctt-help">Choose 'None' to start with all tabs closed. Changes take effect on next page load.</p>
@@ -6319,7 +6320,6 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
  (document.head || document.documentElement).appendChild(style);
 })();
 
-
 // Opt-in page tweaks. Root flags keep these rules active across YouTube navigation.
 (() => {
   const style = document.createElement('style');
@@ -6333,16 +6333,20 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
     }
 
     html[data-mctt-glass] ytd-watch-flexy[tyt-tab] {
-      --mctt-glass-tint: rgba(248, 251, 255, .66);
-      --mctt-glass-shine: rgba(255, 255, 255, .65);
-      --mctt-glass-rim: rgba(132, 154, 188, .36);
-      --mctt-glass-shadow: rgba(28, 48, 75, .12);
+      --mctt-glass-tint: rgba(28, 30, 33, .38);
+      --mctt-glass-shine: rgba(255, 255, 255, .06);
+      --mctt-glass-rim: rgba(180, 188, 200, .20);
+      --mctt-glass-shadow: rgba(0, 0, 0, .16);
+      --mctt-glass-hover-rim: rgba(210, 220, 235, .38);
+      --mctt-glass-hover-glow: rgba(160, 180, 210, .22);
     }
     html[data-mctt-glass]:is([dark], :has(ytd-app[dark])) ytd-watch-flexy[tyt-tab] {
-      --mctt-glass-tint: rgba(27, 30, 39, .69);
-      --mctt-glass-shine: rgba(220, 231, 255, .12);
-      --mctt-glass-rim: rgba(219, 230, 255, .23);
+      --mctt-glass-tint: rgba(18, 19, 22, .38);
+      --mctt-glass-shine: rgba(255, 255, 255, .05);
+      --mctt-glass-rim: rgba(255, 255, 255, .16);
       --mctt-glass-shadow: rgba(0, 0, 0, .26);
+      --mctt-glass-hover-rim: rgba(255, 255, 255, .32);
+      --mctt-glass-hover-glow: rgba(255, 255, 255, .18);
     }
     html[data-mctt-glass] ytd-watch-flexy[tyt-tab] #right-tabs :is(#material-tabs, .tab-content),
     html[data-mctt-glass] ytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] {
@@ -6353,12 +6357,75 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
     }
     html[data-mctt-glass] ytd-watch-flexy[tyt-tab] #right-tabs :is(#material-tabs, .tab-content:not(.tab-content-hidden)),
     html[data-mctt-glass] ytd-watch-flexy[tyt-tab] #bottom-row #description ytd-watch-info-text[data-mctt-pill] {
-      -webkit-backdrop-filter: blur(16px) saturate(150%);
-      backdrop-filter: blur(16px) saturate(150%);
+      -webkit-backdrop-filter: blur(16px) saturate(130%);
+      backdrop-filter: blur(16px) saturate(130%);
     }
-    html[data-mctt-glass] ytd-watch-flexy[tyt-tab] #right-tabs #material-tabs a.tab-btn[tyt-tab-content]:not(.active):not(:hover):not(:active) {
-      background: color-mix(in srgb, var(--mctt-pill) 60%, transparent);
+    html[data-mctt-glass] ytd-watch-flexy[tyt-tab] #right-tabs #material-tabs a.tab-btn[tyt-tab-content]:not(.active) {
+      background: color-mix(in srgb, var(--mctt-pill) 34%, transparent);
       border-color: var(--mctt-glass-rim);
+      box-shadow: inset 0 1px 0 var(--mctt-glass-shine);
+      transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
+    }
+    html[data-mctt-glass] ytd-watch-flexy[tyt-tab] #right-tabs #material-tabs a.tab-btn[tyt-tab-content]:not(.active):hover {
+      border-color: var(--mctt-glass-hover-rim);
+      box-shadow: inset 0 1px 0 var(--mctt-glass-shine), 0 0 0 1px var(--mctt-glass-hover-glow);
+    }
+    html[data-mctt-glass] ytd-watch-flexy[tyt-tab] #right-tabs #material-tabs a.tab-btn[tyt-tab-content]:not(.active):focus-visible {
+      border-color: var(--mctt-glass-hover-rim);
+      box-shadow: inset 0 1px 0 var(--mctt-glass-shine), 0 0 0 2px var(--mctt-glass-hover-glow);
+    }
+    html[data-mctt-glass] ytd-watch-flexy[tyt-tab] #right-tabs #material-tabs a.tab-btn[tyt-tab-content].active {
+      border-color: var(--mctt-glass-hover-rim);
+      box-shadow: inset 0 1px 0 var(--mctt-glass-shine), 0 0 0 1px var(--mctt-glass-hover-glow);
+    }
+
+    html[data-mctt-glass] .mctt-settings-host dialog {
+      background-color: rgba(24, 26, 29, .46);
+      background-image: linear-gradient(145deg, rgba(255, 255, 255, .07), transparent 72%);
+      border-color: rgba(255, 255, 255, .18);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), 0 20px 65px rgba(0, 0, 0, .38);
+      -webkit-backdrop-filter: blur(20px) saturate(130%);
+      backdrop-filter: blur(20px) saturate(130%);
+      color: #f1f1f1;
+      color-scheme: dark;
+      --surface: transparent;
+      --text: #f1f1f1;
+      --muted: #b6b6b6;
+      --control: rgba(255, 255, 255, .10);
+      --edge: rgba(255, 255, 255, .18);
+    }
+    html[data-mctt-glass] .mctt-settings-host dialog::backdrop {
+      background: rgba(0, 0, 0, .48);
+    }
+    html[data-mctt-glass] .mctt-settings-host fieldset,
+    html[data-mctt-glass] .mctt-settings-host .support {
+      background-color: rgba(255, 255, 255, .06);
+      border-color: rgba(255, 255, 255, .16);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07);
+      -webkit-backdrop-filter: blur(12px) saturate(130%);
+      backdrop-filter: blur(12px) saturate(130%);
+    }
+    html[data-mctt-glass] .mctt-settings-host select,
+    html[data-mctt-glass] .mctt-settings-host button,
+    html[data-mctt-glass] .mctt-settings-host .support-link,
+    html[data-mctt-glass] .mctt-settings-host .tweak input {
+      background-color: rgba(255, 255, 255, .10);
+      border-color: rgba(255, 255, 255, .18);
+      color: #f1f1f1;
+    }
+    html[data-mctt-glass] .mctt-settings-host .tweak input:checked {
+      background-color: #065fd4;
+      border-color: #065fd4;
+    }
+    html[data-mctt-glass] .mctt-settings-host .support-link:hover {
+      border-color: rgba(255, 255, 255, .34);
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, .14);
+      background-color: rgba(255, 255, 255, .12);
+    }
+    html[data-mctt-glass] .mctt-settings-host button[type="submit"] {
+      background-color: rgba(255, 255, 255, .82);
+      border-color: rgba(255, 255, 255, .82);
+      color: #101114;
     }
   `;
   (document.head || document.documentElement).appendChild(style);
