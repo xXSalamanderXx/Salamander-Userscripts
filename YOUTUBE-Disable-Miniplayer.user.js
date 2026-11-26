@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         YOUTUBE-Disable-Miniplayer
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      1.1.0
-// @description  Disables YouTube's miniplayer by blocking DOM attributes, intercepting navigation, and pausing playback.
+// @version      1.2.0
+// @description  Hides YouTube's miniplayer and stops background playback after leaving a video page.
 // @updateURL    https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Disable-Miniplayer.user.js
 // @downloadURL  https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Disable-Miniplayer.user.js
 // @author       xXSalamanderXx
@@ -12,91 +12,81 @@
 // @run-at       document-start
 // ==/UserScript==
 
-
-(function() {
+(function () {
     'use strict';
 
+    const playerSelector = '#movie_player';
+    const blockedMediaSelector = '#movie_player, ytd-miniplayer';
 
-    const css = `
+    const style = document.createElement('style');
+    style.textContent = `
         ytd-miniplayer,
-        [miniplayer-active_] ytd-miniplayer,
-        [miniplayer-active] ytd-miniplayer,
         .ytp-miniplayer-ui,
         #movie_player.ytp-mini-player-active {
             display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
         }
     `;
-    const style = document.createElement('style');
-    style.textContent = css;
-    if (document.documentElement) document.documentElement.appendChild(style);
 
-
-    const killPlayback = () => {
-        const video = document.querySelector('video');
-        if (video && !video.paused) {
-            video.pause();
+    function installStyle() {
+        if (!style.isConnected && document.documentElement) {
+            document.documentElement.appendChild(style);
         }
+    }
 
+    function isPlaybackPage() {
+        const path = location.pathname;
+        return path === '/watch' ||
+            /^\/(?:shorts|live|embed|clip)\/[^/]+/.test(path);
+    }
 
-        const closeBtn = document.querySelector('.ytp-miniplayer-close-button');
-        if (closeBtn) {
-            closeBtn.click();
-        }
-    };
+    function pauseBackgroundPlayer() {
+        if (isPlaybackPage()) return;
 
-
-    if (window.navigation) {
-        window.navigation.addEventListener('navigate', (event) => {
-            const url = new URL(event.destination.url);
-            if (!url.pathname.startsWith('/watch')) {
-                killPlayback();
+        document.querySelectorAll(playerSelector).forEach(player => {
+            if (typeof player.pauseVideo === 'function') {
+                player.pauseVideo();
             }
+        });
+
+        document.querySelectorAll(
+            '#movie_player video, #movie_player audio, ' +
+            'ytd-miniplayer video, ytd-miniplayer audio'
+        ).forEach(media => {
+            if (!media.paused) media.pause();
         });
     }
 
-
-    window.addEventListener('yt-navigate-start', (e) => {
-        if (e.detail?.url && !e.detail.url.includes('/watch')) {
-            killPlayback();
+    function onMediaStart(event) {
+        const media = event.target;
+        if (
+            !isPlaybackPage() &&
+            media instanceof HTMLMediaElement &&
+            media.closest(blockedMediaSelector) &&
+            !media.paused
+        ) {
+            media.pause();
         }
-    });
+    }
 
+    // Catch playback that resumes after YouTube moves or reuses the player.
+    document.addEventListener('play', onMediaStart, true);
+    document.addEventListener('playing', onMediaStart, true);
 
-    const observer = new MutationObserver(() => {
-        const app = document.querySelector('ytd-app');
-        const isMiniActive = app && (app.hasAttribute('miniplayer-active_') || app.hasAttribute('miniplayer-active')) ||
-                             document.querySelector('ytd-miniplayer[active]');
+    // Check the committed URL, not the URL before navigation.
+    window.navigation?.addEventListener(
+        'currententrychange', pauseBackgroundPlayer
+    );
+    window.addEventListener('yt-navigate-finish', pauseBackgroundPlayer);
+    window.addEventListener('popstate', pauseBackgroundPlayer);
+    window.addEventListener('pageshow', pauseBackgroundPlayer);
 
-
-        if (isMiniActive) {
-            killPlayback();
-
-
-            if (app) {
-                app.removeAttribute('miniplayer-active_');
-                app.removeAttribute('miniplayer-active');
-            }
-            const mini = document.querySelector('ytd-miniplayer');
-            if (mini) mini.removeAttribute('active');
-        }
-    });
-
-
-    const startObserver = () => {
-        if (document.body) {
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true,
-                attributes: true,
-                attributeFilter: ['miniplayer-active_', 'miniplayer-active', 'active']
-            });
-        } else {
-            requestAnimationFrame(startObserver);
-        }
-    };
-    startObserver();
-
-
+    installStyle();
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            installStyle();
+            pauseBackgroundPlayer();
+        }, { once: true });
+    } else {
+        pauseBackgroundPlayer();
+    }
 })();
