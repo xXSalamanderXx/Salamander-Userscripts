@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YOUTUBE-Modern-Clean-Tabbed-Tube
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      3.0.3
+// @version      3.0.4
 // @description  Rounded YouTube tabs with a configurable default panel.
 // @updateURL    https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
 // @downloadURL  https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
@@ -869,10 +869,25 @@ function getLangForPage() {
 
 
   const pillSelector = 'ytd-watch-flexy[tyt-tab][hide-default-text-inline-expander] ytd-watch-metadata #bottom-row #description ytd-watch-info-text:not([hidden])';
+  const restoreDateText = (pill) => {
+    const date = pill.querySelector('#date-text');
+    if (!date || !date.dataset.mcttDateText) return;
+    const current = (date.textContent || '').trim();
+    const saved = date.dataset.mcttDateText;
+    if (!current || /^(?:0+h ago|00h ago)$/i.test(current)) {
+      for (const node of date.querySelectorAll('*')) node.textContent = '';
+      date.textContent = saved;
+    }
+  };
   const setPillExpanded = (pill, expanded) => {
     pill.setAttribute('aria-expanded', String(expanded));
     if (typeof pill.detailed === 'boolean') pill.detailed = expanded;
     pill.toggleAttribute('detailed', expanded);
+    requestAnimationFrame(() => {
+      restoreDateText(pill);
+      setTimeout(() => restoreDateText(pill), 50);
+      setTimeout(() => restoreDateText(pill), 180);
+    });
   };
   let pillVideo;
   const preparePills = () => {
@@ -917,6 +932,8 @@ function getLangForPage() {
     if (event.detail === 0 || (pill.getAttribute('aria-expanded') === 'true' && target.closest('a[href]'))) return;
     event.preventDefault();
     event.stopImmediatePropagation();
+    const date = pill.querySelector('#date-text');
+    if (date) date.dataset.mcttDateText = (date.textContent || '').trim();
     setPillExpanded(pill, pill.getAttribute('aria-expanded') !== 'true');
     flashControl(pill);
   };
@@ -5832,7 +5849,7 @@ const styles = {
     font-size: 15px; line-height: 1.4;
   }
   ytd-watch-flexy[tyt-tab] :is(#bottom-row #description, #tab-info) ytd-watch-info-text :is(#date-text, #date-text *) {
-    font-size: 13px; line-height: 1.4;
+    font-size: 14px; line-height: 1.4;
   }
   ytd-watch-flexy[tyt-tab] ytd-watch-info-text #info-container:has(#view-count):has(#date-text) { column-gap: 6px; flex-wrap: wrap; }
   ytd-watch-flexy[tyt-tab] ytd-watch-info-text #date-text { height: auto; }
@@ -6045,7 +6062,7 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
     <dialog aria-labelledby="mctt-title">
       <form>
         <h2 id="mctt-title">Modern Clean Tabbed Tube</h2>
-        <p>By xXSalamanderXx · v3.0.3</p>
+        <p>By xXSalamanderXx · v3.0.4</p>
         <label for="mctt-choice">Default tab on new videos</label>
         <select id="mctt-choice" aria-describedby="mctt-help"></select>
         <p id="mctt-help">Choose 'None' to start with all tabs closed. Changes take effect on next page load.</p>
@@ -6381,6 +6398,15 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
       ytd-grid-video-renderer:has(.yt-badge-shape--membership)
     ) {
       display: none !important;
+    }
+
+    /* Prevent the animated view counter from resetting the relative upload
+       date to "00h ago" while the expandable view-count pill changes layout. */
+    ytd-watch-flexy[tyt-tab][hide-default-text-inline-expander]
+      #bottom-row #description ytd-watch-info-text[data-mctt-pill]
+      #date-text :is(yt-animated-rolling-number, .yt-animated-rolling-number) {
+      animation: none !important;
+      transition: none !important;
     }
 
     html[data-mctt-glass] ytd-watch-flexy[tyt-tab] {
