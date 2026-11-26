@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YOUTUBE-Modern-Clean-Tabbed-Tube
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      3.0.2
+// @version      3.0.3
 // @description  Rounded YouTube tabs with a configurable default panel.
 // @updateURL    https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
 // @downloadURL  https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
@@ -6009,7 +6009,8 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
       p { color:var(--muted); margin:6px 0 18px; }
       label { display:block; font-weight:600; margin-bottom:6px; }
       select,button { font:inherit; color:inherit; border:1px solid var(--edge); background:var(--control); border-radius:999px; padding:7px 12px; }
-      select { width:100%; padding-inline-end:32px; }
+      select { appearance:none; -webkit-appearance:none; width:100%; padding-inline-end:34px; background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23606060' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 18px center; }
+      select::-ms-expand { display:none; }
       fieldset { margin:0 0 12px; padding:5px 12px; min-inline-size:0; border:1px solid var(--edge); border-radius:16px; }
       legend { padding-inline:5px; font-weight:700; }
       .tweak { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:34px; margin:0; cursor:pointer; }
@@ -6044,7 +6045,7 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
     <dialog aria-labelledby="mctt-title">
       <form>
         <h2 id="mctt-title">Modern Clean Tabbed Tube</h2>
-        <p>By xXSalamanderXx · v3.0.2</p>
+        <p>By xXSalamanderXx · v3.0.3</p>
         <label for="mctt-choice">Default tab on new videos</label>
         <select id="mctt-choice" aria-describedby="mctt-help"></select>
         <p id="mctt-help">Choose 'None' to start with all tabs closed. Changes take effect on next page load.</p>
@@ -6450,7 +6451,12 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
       -webkit-backdrop-filter: blur(12px) saturate(130%);
       backdrop-filter: blur(12px) saturate(130%);
     }
-    html[data-mctt-glass] .mctt-settings-host select,
+    html[data-mctt-glass] .mctt-settings-host select {
+      background-color: rgba(255, 255, 255, .10);
+      border-color: rgba(255, 255, 255, .18);
+      color: #f1f1f1;
+      background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23b6b6b6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
     html[data-mctt-glass] .mctt-settings-host button,
     html[data-mctt-glass] .mctt-settings-host .support-link,
     html[data-mctt-glass] .mctt-settings-host .resource-link,
