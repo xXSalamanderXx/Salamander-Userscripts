@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YOUTUBE-Modern-Clean-Tabbed-Tube
 // @namespace    https://github.com/xXSalamanderXx/Salamander-Userscripts
-// @version      3.0.1
+// @version      3.0.2
 // @description  Rounded YouTube tabs with a configurable default panel.
 // @updateURL    https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
 // @downloadURL  https://raw.githubusercontent.com/xXSalamanderXx/Salamander-Userscripts/main/YOUTUBE-Modern-Clean-Tabbed-Tube.user.js
@@ -5955,9 +5955,9 @@ const mcttChoices = new Map([
 ]);
 const mcttStorageKey = 'defaultTab';
 const mcttTweaks = [
+  ['glassEffect', 'data-mctt-glass', 'Glass Effect'],
   ['hideCreate', 'data-mctt-hide-create', "Hide 'Create' Button"],
   ['hidePlayerInfo', 'data-mctt-hide-player-info', "Hide 'I' Info Button in Video Player"],
-  ['glassEffect', 'data-mctt-glass', 'Glass Effect'],
   ['hideMembership', 'data-mctt-hide-membership', 'Hide YouTube Membership Channel Sign Up Buttons']
 ];
 const mcttResources = [
@@ -5976,6 +5976,7 @@ const mcttResources = [
     ]
   }
 ];
+const mcttRepositoryUrl = 'https://github.com/xXSalamanderXx/Salamander-Userscripts';
 const mcttPublish = () => {
   const value = GM_getValue(mcttStorageKey, 'description');
   document.documentElement.setAttribute('data-mctt-default', mcttChoices.has(value) ? value : 'description');
@@ -6008,7 +6009,7 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
       p { color:var(--muted); margin:6px 0 18px; }
       label { display:block; font-weight:600; margin-bottom:6px; }
       select,button { font:inherit; color:inherit; border:1px solid var(--edge); background:var(--control); border-radius:999px; padding:7px 12px; }
-      select { width:100%; }
+      select { width:100%; padding-inline-end:32px; }
       fieldset { margin:0 0 12px; padding:5px 12px; min-inline-size:0; border:1px solid var(--edge); border-radius:16px; }
       legend { padding-inline:5px; font-weight:700; }
       .tweak { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:34px; margin:0; cursor:pointer; }
@@ -6022,6 +6023,9 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
       .resource-links { display:flex; flex-wrap:wrap; gap:8px; }
       .resource-link { display:inline-flex; align-items:center; padding:5px 10px; border:1px solid var(--edge); border-radius:999px; background:var(--control); color:inherit; font-weight:600; text-decoration:none; }
       .resource-link:hover { border-color:#3ea6ff; background:color-mix(in srgb, #3ea6ff 12%, var(--control)); }
+      .footer { margin:14px 0 0; padding-top:10px; border-top:1px solid var(--edge); color:var(--muted); font-size:11px; line-height:1.35; text-align:center; }
+      .footer a { color:inherit; font-weight:600; text-decoration:underline; text-underline-offset:2px; }
+      .footer a:hover { color:#3ea6ff; }
       @media (forced-colors:active) { .tweak input { appearance:auto; } .tweak input::before { content:none; } }
       .support { margin: 18px 0 16px; padding: 14px; border: 1px solid var(--edge); border-radius: 16px; background: color-mix(in srgb, var(--control) 55%, transparent); }
       .support-title { display:flex; align-items:center; gap:8px; font-weight:700; margin-bottom:10px; }
@@ -6040,7 +6044,7 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
     <dialog aria-labelledby="mctt-title">
       <form>
         <h2 id="mctt-title">Modern Clean Tabbed Tube</h2>
-        <p>By xXSalamanderXx · v3.0.1</p>
+        <p>By xXSalamanderXx · v3.0.2</p>
         <label for="mctt-choice">Default tab on new videos</label>
         <select id="mctt-choice" aria-describedby="mctt-help"></select>
         <p id="mctt-help">Choose 'None' to start with all tabs closed. Changes take effect on next page load.</p>
@@ -6072,6 +6076,7 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
             </a>
           </div>
         </section>
+        <p class="footer">This is an Open Source project. Inspect the code here: <a href="${mcttRepositoryUrl}" target="_blank" rel="noopener noreferrer">GitHub</a>.</p>
         <footer><button type="button">Cancel</button><button type="submit">Save</button></footer>
       </form>
     </dialog>`;
@@ -6362,9 +6367,6 @@ GM_registerMenuCommand('Modern Clean Tabbed Tube: Settings', () => {
       display: none !important;
     }
 
-    /* Hide the membership Join / Sign Up control beside Subscribe, its
-       channel-header equivalent, direct /join links, and membership promos.
-       The normal Subscribe button is explicitly excluded. */
     html[data-mctt-hide-membership] :is(
       ytd-video-owner-renderer > #sponsor-button,
       ytd-video-owner-renderer #sponsor-button,
