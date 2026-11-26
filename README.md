@@ -27,7 +27,7 @@ Each script includes `@updateURL` and `@downloadURL` metadata, so installed scri
 These userscripts are not included in this repository but I suggest you check them out:
 
 - [RLSBB-Search-Plus](https://github.com/xXSalamanderXx/RLSBB-Search-Plus)
-- [HDEncode-Search-PlusSee](https://github.com/xXSalamanderXx/HDEncode-Search-PlusSee)
+- [HDEncode-Search-Plus](https://github.com/xXSalamanderXx/HDEncode-Search-Plus)
 
 
 ---
